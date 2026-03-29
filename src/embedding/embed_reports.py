@@ -2,6 +2,7 @@ import os
 import time
 import psycopg2
 import re
+from datetime import timezone
 from openai import OpenAI
 from pinecone import Pinecone
 from dotenv import load_dotenv
@@ -78,7 +79,7 @@ def chunk_report(body):
 # Classifies a report as men's or women's football based on title keywords.
 # Used as a metadata filter at query time so users can search one or the other.
 
-WOMENS_KEYWORDS = ["women", "wsl", "ladies", "women's champions league", "lionesses"]
+WOMENS_KEYWORDS = ["women", "wsl", "ladies", "women's champions league", "lionesses", "wcl"]
 
 
 def detect_gender(title):
@@ -119,9 +120,9 @@ def embed_all(batch_size=7523):
         -- Exclude live blogs — these are minute-by-minute match logs, not match reports.
         -- They produce very poor chunks (e.g. "45+2: Yellow card for Soucek") that
         -- are useless for tactical or player form queries.
-        AND mr.title NOT ILIKE '%as it happened%'
-        AND mr.title NOT ILIKE '%– live%'
-        AND mr.title NOT ILIKE '%- live%'
+        AND mr.title NOT ILIKE '%%as it happened%%'
+        AND mr.title NOT ILIKE '%%– live%%'
+        AND mr.title NOT ILIKE '%%- live%%'
         LIMIT %s
     """, (batch_size,))
 
@@ -148,7 +149,8 @@ def embed_all(batch_size=7523):
                         "chunk_index": i,
                         "chunk_text": chunk_text,
                         "title": title,
-                        "published_at": str(published_at),
+                        # stored as Unix timestamp (int) so Pinecone can filter with $gte
+                        "published_at": int(published_at.replace(tzinfo=timezone.utc).timestamp()),
                         "gender": gender,
                     }
                 })
