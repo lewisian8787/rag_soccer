@@ -238,6 +238,39 @@ def get_top_rated_players(position: str = None, since_date: str = None, limit: i
             return [dict(r) for r in cur.fetchall()]
 
 
+def get_most_booked_players(card_type: str = "yellow", team_name: str = None, limit: int = 10) -> list[dict]:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            order_col = "red_cards" if card_type == "red" else "yellow_cards"
+
+            conditions = []
+            params = []
+
+            if team_name:
+                conditions.append("(m.home_team ILIKE %s OR m.away_team ILIKE %s)")
+                params.extend([f"%{team_name}%", f"%{team_name}%"])
+
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            params.append(limit)
+
+            cur.execute(f"""
+                SELECT
+                    p.name,
+                    SUM(s.yellow_cards) AS yellow_cards,
+                    SUM(s.red_cards) AS red_cards,
+                    COUNT(*) AS appearances
+                FROM api_player_match_stats s
+                JOIN api_players p ON p.id = s.player_id
+                JOIN api_matches m ON m.id = s.match_id
+                {where}
+                GROUP BY p.name
+                HAVING SUM(s.{order_col}) > 0
+                ORDER BY SUM(s.{order_col}) DESC
+                LIMIT %s
+            """, params)
+            return [dict(r) for r in cur.fetchall()]
+
+
 def format_stats_context(data: list[dict] | dict | None, label: str) -> str:
     if not data:
         return f"[No {label} data found]"

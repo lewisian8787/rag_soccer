@@ -48,6 +48,7 @@ Guidelines:
 - Base your answer only on the provided context — do not use outside knowledge
 - If the context doesn't contain enough information, say so and set confidence to low
 - Keep answers focused and analytical — avoid vague generalities
+- Be concise — state the fact directly, do not explain how it was calculated or restate the question
 - Sources should only include match reports you actually drew from
 - Set caveat to null if there are no limitations worth flagging
 - Stick to a particular season if it is specified

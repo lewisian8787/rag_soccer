@@ -7,6 +7,7 @@ from query_stats import (
     get_top_scorers,
     get_top_assisters,
     get_top_rated_players,
+    get_most_booked_players,
 )
 
 # --- Tool definitions ---
@@ -158,6 +159,28 @@ TOOLS = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_most_booked_players",
+            "description": "Get the players with the most yellow or red cards in the Premier League this season. Can be filtered to a specific team. Use for questions about disciplinary records, bookings, or suspensions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "card_type": {
+                        "type": "string",
+                        "enum": ["yellow", "red"],
+                        "description": "Whether to rank by yellow cards or red cards. Defaults to yellow."
+                    },
+                    "team_name": {
+                        "type": "string",
+                        "description": "Filter to players from a specific team e.g. 'Leeds', 'Arsenal'. Omit for the whole league."
+                    }
+                },
+                "required": []
+            }
+        }
+    },
 ]
 
 # --- Dispatcher ---
@@ -172,4 +195,5 @@ FUNCTION_MAP = {
     "get_top_scorers": get_top_scorers,
     "get_top_assisters": get_top_assisters,
     "get_top_rated_players": get_top_rated_players,
+    "get_most_booked_players": get_most_booked_players,
 }
