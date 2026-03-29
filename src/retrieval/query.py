@@ -1,6 +1,7 @@
 import os
+import re
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from openai import OpenAI
 from pinecone import Pinecone
 from dotenv import load_dotenv
@@ -49,9 +50,12 @@ Guidelines:
 - If the context doesn't contain enough information, say so and set confidence to low
 - Keep answers focused and analytical — avoid vague generalities
 - Be concise — state the fact directly, do not explain how it was calculated or restate the question
+- For list-based answers, return the list and a one-line summary only — do not add qualifying commentary after the list
 - Sources should only include match reports you actually drew from
 - Set caveat to null if there are no limitations worth flagging
+- If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge
 - Stick to a particular season if it is specified
+- For tactical questions, only respond with information across a reasonable time frame (e.g. there is no point in drawing example from 5 years ago, or when a different manager was in charge.)
 """
 
 
@@ -70,6 +74,8 @@ Rules:
 - Player form questions (e.g. "How has Salah been playing?", "Is Saka in form?") → always both — narrative context AND stats are needed
 - Fantasy questions (e.g. "Is X worth picking?", "Who should I start?") → always both
 - Subjective quality questions about players (e.g. "Who has been clinical?", "Who has been creative?") → always both — stats confirm it, reports explain it
+- Match recap questions (e.g. "What happened in the last X game?", "How did X get on?", "What was the result when X played Y?") → always both — stats for the actual result, RAG for the narrative context
+- Any references to 'recent' or 'as of late' or anything that implies recent, only utilize sources from the last month
 
 When in doubt, return both.
 
@@ -97,7 +103,13 @@ def classify_query(query: str) -> set[str]:
 # The model selects the right function and extracts parameters.
 # We then execute the function and return formatted context.
 
-def fetch_stats_context(query: str) -> str:
+def fetch_stats_context(query: str, since_date: str = None) -> str:
+    date_instruction = (
+        f" The user is asking about recent form — only include data from {since_date} onwards "
+        f"by passing since_date='{since_date}' to any tool that supports it."
+        if since_date else ""
+    )
+
     response = openai_client.chat.completions.create(
         model=CLASSIFIER_MODEL,
         messages=[
@@ -109,6 +121,7 @@ def fetch_stats_context(query: str) -> str:
                     "Call the most appropriate tool with the correct parameters extracted from the question. "
                     "Always expand abbreviations and nicknames to full player names before passing as parameters — "
                     "e.g. 'DCL' → 'Calvert-Lewin', 'TAA' → 'Trent Alexander-Arnold', 'KDB' → 'De Bruyne'."
+                    + date_instruction
                 )
             },
             {"role": "user", "content": query},
@@ -148,25 +161,41 @@ def get_embedding(text):
     return response.data[0].embedding
 
 
+CURRENT_SEASON_DATE = "2025-08-01"   # start of 2025/26 season
+FALLBACK_SEASON_DATE = "2024-08-01"  # start of 2024/25 season — fallback if current season empty
+
+
 def retrieve(query, from_date=None, gender=None):
+    # text string query from the user gets embedded. Return 1536 dimension vector
     embedding = get_embedding(query)
 
-    pinecone_filter = {}
-    if from_date:
-        timestamp = int(datetime.strptime(from_date, "%Y-%m-%d").timestamp())
-        pinecone_filter["published_at"] = {"$gte": timestamp}
-    if gender:
-        pinecone_filter["gender"] = {"$eq": gender}
+    def _query_pinecone(cutoff_date):
+        pinecone_filter = {}
+        if cutoff_date:
+            timestamp = int(datetime.strptime(cutoff_date, "%Y-%m-%d").timestamp())
+            pinecone_filter["published_at"] = {"$gte": timestamp}
+        if gender:
+            pinecone_filter["gender"] = {"$eq": gender}
+        results = index.query(
+            vector=embedding,
+            top_k=TOP_K,
+            include_metadata=True,
+            filter=pinecone_filter if pinecone_filter else None,
+        )
+        return [r for r in results["matches"] if r["score"] >= MIN_SCORE]
 
-    results = index.query(
-        vector=embedding,
-        top_k=TOP_K,
-        include_metadata=True,
-        filter=pinecone_filter if pinecone_filter else None,
-    )
+    # If caller specified a date, use it directly with no fallback
+    if from_date is not None:
+        return _query_pinecone(from_date), False
 
-    chunks = [r for r in results["matches"] if r["score"] >= MIN_SCORE]
-    return chunks
+    # Default: try current season first
+    chunks = _query_pinecone(CURRENT_SEASON_DATE)
+    if chunks:
+        return chunks, False
+
+    # Fall back to previous season and flag it
+    chunks = _query_pinecone(FALLBACK_SEASON_DATE)
+    return chunks, bool(chunks)
 
 
 # --- Build context string from retrieved chunks ---
@@ -184,7 +213,9 @@ def build_context(chunks):
 
 # --- Generate answer from LLM ---
 
-def generate(query, chunks, stats_context=""):
+def generate(query, chunks, stats_context="", used_fallback=False):
+
+    # format the retrieved chunk strings and metadata into one long string
     rag_context = build_context(chunks)
 
     if not rag_context and not stats_context:
@@ -194,7 +225,8 @@ def generate(query, chunks, stats_context=""):
             "sources": [],
             "caveat": "No relevant match reports or stats found."
         }
-
+    
+    # for questions needing the stats tool and rag, weaving them together into a string
     sections = []
     if stats_context:
         sections.append(f"STRUCTURED STATS:\n\n{stats_context}")
@@ -202,14 +234,25 @@ def generate(query, chunks, stats_context=""):
         sections.append(f"MATCH REPORT EXCERPTS:\n\n{rag_context}")
 
     context_block = "\n\n" + "\n\n".join(sections)
-    user_message = f"{context_block}\n\nQuestion: {query}"
 
+    fallback_note = (
+        "\n\nNote: No match reports were found for the current season. "
+        "The following context is from the previous season (2024/25). "
+        "Make clear in your answer and caveat that this is last season's data."
+        if used_fallback else ""
+    )
+
+    #concatenating the user query
+    user_message = f"{context_block}{fallback_note}\n\nQuestion: {query}"
+
+    #adding the system prompt and calling the model
     response = openai_client.chat.completions.create(
         model=LLM_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
+        # not structured output yet
         response_format={"type": "json_object"},
     )
 
@@ -218,18 +261,37 @@ def generate(query, chunks, stats_context=""):
 
 # --- Main query function ---
 
+RECENCY_PATTERN = re.compile(
+    r"\b("
+    # Recency adverbs
+    r"recently|lately|of late|as of late|nowadays|these days|"
+    r"right now|at the moment|currently|presently|"
+    # Form/momentum language
+    r"in form|in good form|on form|on fire|hot streak|flying|"
+    r"sharp|clinical|looking good|looking sharp|back to his best|"
+    r"hit the ground running"
+    r")\b",
+    re.IGNORECASE
+)
+
+
 def ask(query, from_date=None, gender=None):
     query_types = classify_query(query)
 
+    # Added: default to last 30 days for obviously recent queries
+    if from_date is None and RECENCY_PATTERN.search(query):
+        from_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
     stats_context = ""
     if "stats" in query_types:
-        stats_context = fetch_stats_context(query)
+        stats_context = fetch_stats_context(query, since_date=from_date)
 
     chunks = []
+    used_fallback = False
     if "rag" in query_types:
-        chunks = retrieve(query, from_date=from_date, gender=gender)
+        chunks, used_fallback = retrieve(query, from_date=from_date, gender=gender)
 
-    result = generate(query, chunks, stats_context=stats_context)
+    result = generate(query, chunks, stats_context=stats_context, used_fallback=used_fallback)
     result["query"] = query
     result["query_types"] = list(query_types)
     result["retrieval_scores"] = [round(c["score"], 4) for c in chunks]

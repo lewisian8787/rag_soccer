@@ -118,10 +118,15 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_top_scorers",
-            "description": "Get the top goalscorers in the Premier League this season, ranked by total goals.",
+            "description": "Get the top goalscorers in the Premier League this season, ranked by total goals. Use for questions about top scorers, in-form strikers, or who has been scoring recently. Use since_date to filter to recent form (e.g. last 30 days).",
             "parameters": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "since_date": {
+                        "type": "string",
+                        "description": "Only include matches from this date onwards. Format: YYYY-MM-DD e.g. '2026-02-28'"
+                    }
+                },
                 "required": []
             }
         }
@@ -130,10 +135,15 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_top_assisters",
-            "description": "Get the players with the most assists in the Premier League this season.",
+            "description": "Get the players with the most assists in the Premier League this season. Use since_date to filter to recent form.",
             "parameters": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "since_date": {
+                        "type": "string",
+                        "description": "Only include matches from this date onwards. Format: YYYY-MM-DD e.g. '2026-02-28'"
+                    }
+                },
                 "required": []
             }
         }

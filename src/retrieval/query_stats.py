@@ -166,10 +166,17 @@ def get_match_scorers(home_team: str, away_team: str) -> list[dict]:
             return [dict(r) for r in cur.fetchall()]
 
 
-def get_top_scorers(limit: int = 10) -> list[dict]:
+def get_top_scorers(limit: int = 10, since_date: str = None) -> list[dict]:
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
+            conditions = []
+            params = []
+            if since_date:
+                conditions.append("m.date >= %s")
+                params.append(since_date)
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            params.append(limit)
+            cur.execute(f"""
                 SELECT
                     p.name,
                     SUM(s.goals) AS goals,
@@ -177,17 +184,26 @@ def get_top_scorers(limit: int = 10) -> list[dict]:
                     COUNT(*) AS appearances
                 FROM api_player_match_stats s
                 JOIN api_players p ON p.id = s.player_id
+                JOIN api_matches m ON m.id = s.match_id
+                {where}
                 GROUP BY p.name
                 ORDER BY goals DESC
                 LIMIT %s
-            """, (limit,))
+            """, params)
             return [dict(r) for r in cur.fetchall()]
 
 
-def get_top_assisters(limit: int = 10) -> list[dict]:
+def get_top_assisters(limit: int = 10, since_date: str = None) -> list[dict]:
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
+            conditions = []
+            params = []
+            if since_date:
+                conditions.append("m.date >= %s")
+                params.append(since_date)
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            params.append(limit)
+            cur.execute(f"""
                 SELECT
                     p.name,
                     SUM(s.assists) AS assists,
@@ -195,11 +211,33 @@ def get_top_assisters(limit: int = 10) -> list[dict]:
                     COUNT(*) AS appearances
                 FROM api_player_match_stats s
                 JOIN api_players p ON p.id = s.player_id
+                JOIN api_matches m ON m.id = s.match_id
+                {where}
                 GROUP BY p.name
                 ORDER BY assists DESC
                 LIMIT %s
-            """, (limit,))
+            """, params)
             return [dict(r) for r in cur.fetchall()]
+
+
+POSITION_MAP = {
+    "goalkeeper": "G",
+    "goalie": "G",
+    "keeper": "G",
+    "defender": "D",
+    "defenders": "D",
+    "midfielder": "M",
+    "midfielders": "M",
+    "mid": "M",
+    "forward": "F",
+    "forwards": "F",
+    "striker": "F",
+    "strikers": "F",
+    "attacker": "F",
+    "attackers": "F",
+    "winger": "F",
+    "wingers": "F",
+}
 
 
 def get_top_rated_players(position: str = None, since_date: str = None, limit: int = 10) -> list[dict]:
@@ -209,13 +247,16 @@ def get_top_rated_players(position: str = None, since_date: str = None, limit: i
             params = []
 
             if position:
-                conditions.append("s.position ILIKE %s")
-                params.append(f"%{position}%")
+                mapped = POSITION_MAP.get(position.lower(), position)
+                conditions.append("s.position = %s")
+                params.append(mapped)
             if since_date:
                 conditions.append("m.date >= %s")
                 params.append(since_date)
 
             where = " AND ".join(conditions)
+            min_appearances = 1 if since_date else 3
+            params.append(min_appearances)
             params.append(limit)
 
             cur.execute(f"""
@@ -231,7 +272,7 @@ def get_top_rated_players(position: str = None, since_date: str = None, limit: i
                 JOIN api_matches m ON m.id = s.match_id
                 WHERE {where}
                 GROUP BY p.name, s.position
-                HAVING COUNT(*) >= 3
+                HAVING COUNT(*) >= %s
                 ORDER BY avg_rating DESC
                 LIMIT %s
             """, params)
