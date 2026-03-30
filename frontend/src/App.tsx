@@ -7,6 +7,25 @@ import type { HistoryEntry } from './components/HistorySidebar'
 
 type Mode = 'football' | 'fpl'
 
+const EXAMPLE_QUESTIONS: Record<Mode, { label: string; type: 'stats' | 'rag' }[]> = {
+  football: [
+    { label: 'Who are the top scorers this season?', type: 'stats' },
+    { label: "How does Arsenal play out from the back?", type: 'rag' },
+    { label: 'Which team has the best defensive record?', type: 'stats' },
+    { label: "What's Liverpool's pressing style like?", type: 'rag' },
+    { label: "Who has the most assists this season?", type: 'stats' },
+    { label: 'How have Chelsea been performing recently?', type: 'rag' },
+  ],
+  fpl: [
+    { label: 'Who should I captain this week?', type: 'stats' },
+    { label: 'Best budget midfielder under £6m?', type: 'stats' },
+    { label: 'Who are the best differentials right now?', type: 'stats' },
+    { label: 'Which players have the easiest fixtures?', type: 'stats' },
+    { label: 'Who is injured or doubtful this week?', type: 'stats' },
+    { label: 'Who has been the best value this season?', type: 'stats' },
+  ],
+}
+
 function App() {
   const [mode, setMode] = useState<Mode>('football')
   const [history, setHistory] = useState<HistoryEntry[]>([])
@@ -49,7 +68,7 @@ function App() {
             <span className="text-3xl">⚽</span>
             <h1 className="text-4xl font-black tracking-tight text-white">Football Form Guide</h1>
           </div>
-          <p className="text-zinc-500 text-sm mb-6">Tactics, form, stats and fantasy — powered by match reports</p>
+          <p className="text-zinc-500 text-sm mb-6">Tactics, form, stats and maybe fantasy — powered by match reports</p>
 
           {/* Mode toggle */}
           <div className="inline-flex rounded-xl border border-zinc-700 overflow-hidden">
@@ -98,6 +117,32 @@ function App() {
           )}
           <InputBar onAsk={handleAsk} loading={loading} mode={mode} />
         </div>
+
+        {!hasContent && (
+          <div className="w-full max-w-2xl mt-10">
+            <p className="text-xs text-zinc-600 uppercase tracking-wide mb-4">Try asking</p>
+            <div className="flex flex-wrap gap-2">
+              {EXAMPLE_QUESTIONS[mode].map(({ label, type }) => (
+                <button
+                  key={label}
+                  onClick={() => handleAsk(label)}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 text-zinc-400 hover:text-zinc-200 text-sm transition-colors"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${type === 'stats' ? 'bg-amber-500' : 'bg-sky-500'}`} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-4 mt-4">
+              <span className="flex items-center gap-1.5 text-xs text-zinc-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Stats
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-zinc-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500" /> Match reports
+              </span>
+            </div>
+          </div>
+        )}
       </main>
 
     </div>
