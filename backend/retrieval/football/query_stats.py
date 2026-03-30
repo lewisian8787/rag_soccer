@@ -397,8 +397,7 @@ def get_league_defensive_ranking(since_date: str = None, limit: int = 10) -> lis
     with get_conn() as conn:
         with conn.cursor() as cur:
             date_filter = "AND date >= %s" if since_date else ""
-            params = [since_date] if since_date else []
-            params.append(limit)
+            date_params = [since_date] if since_date else []
             cur.execute(f"""
                 SELECT
                     team,
@@ -409,16 +408,16 @@ def get_league_defensive_ranking(since_date: str = None, limit: int = 10) -> lis
                 FROM (
                     SELECT home_team AS team, away_goals AS goals_conceded, date
                     FROM api_matches
-                    WHERE TRUE {date_filter.replace('date', 'date')}
+                    WHERE TRUE {date_filter}
                     UNION ALL
                     SELECT away_team AS team, home_goals AS goals_conceded, date
                     FROM api_matches
-                    WHERE TRUE {date_filter.replace('date', 'date')}
+                    WHERE TRUE {date_filter}
                 ) sub
                 GROUP BY team
                 ORDER BY goals_conceded ASC, clean_sheets DESC
                 LIMIT %s
-            """, params * 2 + [limit])
+            """, date_params * 2 + [limit])
             return [dict(r) for r in cur.fetchall()]
 
 
@@ -427,7 +426,7 @@ def get_league_attacking_ranking(since_date: str = None, limit: int = 10) -> lis
     with get_conn() as conn:
         with conn.cursor() as cur:
             date_filter = "AND date >= %s" if since_date else ""
-            params = [since_date] if since_date else []
+            date_params = [since_date] if since_date else []
             cur.execute(f"""
                 SELECT
                     team,
@@ -446,7 +445,7 @@ def get_league_attacking_ranking(since_date: str = None, limit: int = 10) -> lis
                 GROUP BY team
                 ORDER BY goals_scored DESC
                 LIMIT %s
-            """, params * 2 + [limit])
+            """, date_params * 2 + [limit])
             return [dict(r) for r in cur.fetchall()]
 
 
