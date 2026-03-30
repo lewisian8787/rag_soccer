@@ -1,4 +1,4 @@
-from query_stats import (
+from football.query_stats import (
     get_player_season_totals,
     get_player_goal_history,
     get_team_recent_results,
