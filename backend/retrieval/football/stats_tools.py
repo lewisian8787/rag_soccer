@@ -1,8 +1,13 @@
 from football.query_stats import (
     get_player_season_totals,
     get_player_goal_history,
+    get_recent_player_form,
     get_team_recent_results,
     get_team_stats_by_venue,
+    get_team_defensive_stats,
+    get_team_attacking_stats,
+    get_league_defensive_ranking,
+    get_league_attacking_ranking,
     get_match_scorers,
     get_top_scorers,
     get_top_assisters,
@@ -172,6 +177,103 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_recent_player_form",
+            "description": "Get a player's goals, assists, average rating and appearances over a specific recent window. Use this for questions about a player's recent form, how they've been playing lately, or their stats over the last N weeks.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "player_name": {
+                        "type": "string",
+                        "description": "The player's name e.g. 'Salah', 'Haaland'"
+                    },
+                    "since_date": {
+                        "type": "string",
+                        "description": "Start of the form window. Format: YYYY-MM-DD e.g. '2026-02-28'"
+                    }
+                },
+                "required": ["player_name", "since_date"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_team_defensive_stats",
+            "description": "Get a team's goals conceded, clean sheets and average goals conceded per game. Use for questions about defensive record, best defences, or how solid a team has been at the back. Accepts an optional since_date to restrict to recent games.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "team_name": {
+                        "type": "string",
+                        "description": "The team's name e.g. 'Arsenal', 'Chelsea'"
+                    },
+                    "since_date": {
+                        "type": "string",
+                        "description": "Only include matches from this date onwards. Format: YYYY-MM-DD"
+                    }
+                },
+                "required": ["team_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_team_attacking_stats",
+            "description": "Get a team's goals scored and average goals scored per game. Use for questions about attacking output, most clinical teams, or how free-scoring a team has been. Accepts an optional since_date to restrict to recent games.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "team_name": {
+                        "type": "string",
+                        "description": "The team's name e.g. 'Arsenal', 'Liverpool'"
+                    },
+                    "since_date": {
+                        "type": "string",
+                        "description": "Only include matches from this date onwards. Format: YYYY-MM-DD"
+                    }
+                },
+                "required": ["team_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_league_defensive_ranking",
+            "description": "Rank all Premier League teams by goals conceded (fewest first). Use for questions about which teams have the best defence, fewest goals conceded, or most clean sheets across the league. Accepts an optional since_date for recent form.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "since_date": {
+                        "type": "string",
+                        "description": "Only include matches from this date onwards. Format: YYYY-MM-DD"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_league_attacking_ranking",
+            "description": "Rank all Premier League teams by goals scored (most first). Use for questions about the most prolific teams, highest scoring sides, or best attacks across the league. Accepts an optional since_date for recent form.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "since_date": {
+                        "type": "string",
+                        "description": "Only include matches from this date onwards. Format: YYYY-MM-DD"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_most_booked_players",
             "description": "Get the players with the most yellow or red cards in the Premier League this season. Can be filtered to a specific team. Use for questions about disciplinary records, bookings, or suspensions.",
             "parameters": {
@@ -201,8 +303,13 @@ TOOLS = [
 FUNCTION_MAP = {
     "get_player_season_totals": get_player_season_totals,
     "get_player_goal_history": get_player_goal_history,
+    "get_recent_player_form": get_recent_player_form,
     "get_team_recent_results": get_team_recent_results,
     "get_team_stats_by_venue": get_team_stats_by_venue,
+    "get_team_defensive_stats": get_team_defensive_stats,
+    "get_team_attacking_stats": get_team_attacking_stats,
+    "get_league_defensive_ranking": get_league_defensive_ranking,
+    "get_league_attacking_ranking": get_league_attacking_ranking,
     "get_match_scorers": get_match_scorers,
     "get_top_scorers": get_top_scorers,
     "get_top_assisters": get_top_assisters,

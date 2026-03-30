@@ -322,6 +322,134 @@ def get_most_booked_players(card_type: str = "yellow", team_name: str = None, li
             return [dict(r) for r in cur.fetchall()]
 
 
+def get_recent_player_form(player_name: str, since_date: str) -> dict | None:
+    """Goals, assists, average rating and appearances for a player over a recent window."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    p.name,
+                    COUNT(*) AS appearances,
+                    SUM(s.goals) AS goals,
+                    SUM(s.assists) AS assists,
+                    ROUND(AVG(s.rating)::numeric, 2) AS avg_rating
+                FROM api_player_match_stats s
+                JOIN api_players p ON p.id = s.player_id
+                JOIN api_matches m ON m.id = s.match_id
+                WHERE p.name ILIKE %s
+                  AND m.date >= %s
+                GROUP BY p.name
+            """, (f"%{player_name}%", since_date))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+def get_team_defensive_stats(team_name: str, since_date: str = None) -> dict | None:
+    """Goals conceded, clean sheets and average goals conceded per game for a team."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            conditions = ["(home_team ILIKE %s OR away_team ILIKE %s)"]
+            params = [f"%{team_name}%", f"%{team_name}%"]
+            if since_date:
+                conditions.append("date >= %s")
+                params.append(since_date)
+            where = " AND ".join(conditions)
+            cur.execute(f"""
+                SELECT
+                    COUNT(*) AS played,
+                    SUM(CASE WHEN home_team ILIKE %s THEN away_goals ELSE home_goals END) AS goals_conceded,
+                    SUM(CASE
+                        WHEN home_team ILIKE %s AND away_goals = 0 THEN 1
+                        WHEN away_team ILIKE %s AND home_goals = 0 THEN 1
+                        ELSE 0 END) AS clean_sheets,
+                    ROUND(AVG(CASE WHEN home_team ILIKE %s THEN away_goals ELSE home_goals END)::numeric, 2) AS avg_conceded_per_game
+                FROM api_matches
+                WHERE {where}
+            """, [f"%{team_name}%"] * 4 + params)
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+def get_team_attacking_stats(team_name: str, since_date: str = None) -> dict | None:
+    """Goals scored and average goals scored per game for a team."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            conditions = ["(home_team ILIKE %s OR away_team ILIKE %s)"]
+            params = [f"%{team_name}%", f"%{team_name}%"]
+            if since_date:
+                conditions.append("date >= %s")
+                params.append(since_date)
+            where = " AND ".join(conditions)
+            cur.execute(f"""
+                SELECT
+                    COUNT(*) AS played,
+                    SUM(CASE WHEN home_team ILIKE %s THEN home_goals ELSE away_goals END) AS goals_scored,
+                    ROUND(AVG(CASE WHEN home_team ILIKE %s THEN home_goals ELSE away_goals END)::numeric, 2) AS avg_scored_per_game
+                FROM api_matches
+                WHERE {where}
+            """, [f"%{team_name}%"] * 2 + params)
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
+def get_league_defensive_ranking(since_date: str = None, limit: int = 10) -> list[dict]:
+    """All teams ranked by goals conceded — lowest first. Used for 'best defences' questions."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            date_filter = "AND date >= %s" if since_date else ""
+            params = [since_date] if since_date else []
+            params.append(limit)
+            cur.execute(f"""
+                SELECT
+                    team,
+                    COUNT(*) AS played,
+                    SUM(goals_conceded) AS goals_conceded,
+                    SUM(CASE WHEN goals_conceded = 0 THEN 1 ELSE 0 END) AS clean_sheets,
+                    ROUND(AVG(goals_conceded)::numeric, 2) AS avg_conceded
+                FROM (
+                    SELECT home_team AS team, away_goals AS goals_conceded, date
+                    FROM api_matches
+                    WHERE TRUE {date_filter.replace('date', 'date')}
+                    UNION ALL
+                    SELECT away_team AS team, home_goals AS goals_conceded, date
+                    FROM api_matches
+                    WHERE TRUE {date_filter.replace('date', 'date')}
+                ) sub
+                GROUP BY team
+                ORDER BY goals_conceded ASC, clean_sheets DESC
+                LIMIT %s
+            """, params * 2 + [limit])
+            return [dict(r) for r in cur.fetchall()]
+
+
+def get_league_attacking_ranking(since_date: str = None, limit: int = 10) -> list[dict]:
+    """All teams ranked by goals scored — highest first. Used for 'most clinical teams' questions."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            date_filter = "AND date >= %s" if since_date else ""
+            params = [since_date] if since_date else []
+            cur.execute(f"""
+                SELECT
+                    team,
+                    COUNT(*) AS played,
+                    SUM(goals_scored) AS goals_scored,
+                    ROUND(AVG(goals_scored)::numeric, 2) AS avg_scored
+                FROM (
+                    SELECT home_team AS team, home_goals AS goals_scored, date
+                    FROM api_matches
+                    WHERE TRUE {date_filter}
+                    UNION ALL
+                    SELECT away_team AS team, away_goals AS goals_scored, date
+                    FROM api_matches
+                    WHERE TRUE {date_filter}
+                ) sub
+                GROUP BY team
+                ORDER BY goals_scored DESC
+                LIMIT %s
+            """, params * 2 + [limit])
+            return [dict(r) for r in cur.fetchall()]
+
+
 def format_stats_context(data: list[dict] | dict | None, label: str) -> str:
     if not data:
         return f"[No {label} data found]"
