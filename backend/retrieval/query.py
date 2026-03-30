@@ -119,8 +119,10 @@ def fetch_stats_context(query: str, since_date: str = None) -> str:
                     "You are a football stats assistant. "
                     "Use the available tools to fetch data relevant to the user's question. "
                     "Call the most appropriate tool with the correct parameters extracted from the question. "
-                    "Always expand abbreviations and nicknames to full player names before passing as parameters — "
-                    "e.g. 'DCL' → 'Calvert-Lewin', 'TAA' → 'Trent Alexander-Arnold', 'KDB' → 'De Bruyne'."
+                    "Always expand abbreviations and nicknames to full names before passing as parameters — "
+                    "e.g. 'DCL' → 'Calvert-Lewin', 'TAA' → 'Trent Alexander-Arnold', 'KDB' → 'De Bruyne', "
+                    "'Spurs' → 'Tottenham', 'Man United' → 'Manchester United', 'Man City' → 'Manchester City', "
+                    "'Wolves' → 'Wolverhampton', 'Villa' → 'Aston Villa', 'Leicester' → 'Leicester'."
                     + date_instruction
                 )
             },
