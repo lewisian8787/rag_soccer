@@ -30,6 +30,7 @@ function App() {
   const [mode, setMode] = useState<Mode>('football')
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [currentQuery, setCurrentQuery] = useState('')
 
   const { result, streamingText, loading, error, ask } = useAsk((r) => {
     setHistory(prev => {
@@ -41,6 +42,7 @@ function App() {
 
   function handleAsk(query: string) {
     setSelectedIndex(null)
+    setCurrentQuery(query)
     ask(query, mode)
   }
 
@@ -51,6 +53,7 @@ function App() {
   }
 
   const displayResult = selectedIndex !== null ? history[selectedIndex].result : result
+  const displayQuery = selectedIndex !== null ? history[selectedIndex].result.query : currentQuery
   const hasContent = displayResult || loading || !!streamingText || !!error
 
   return (
@@ -99,7 +102,14 @@ function App() {
         </header>
 
         {hasContent && (
-          <div className="w-full max-w-2xl mb-8">
+          <div className="w-full max-w-2xl mb-8 flex flex-col gap-4">
+            {displayQuery && (
+              <div className="flex justify-end">
+                <div className="bg-zinc-800 text-zinc-100 text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%]">
+                  {displayQuery}
+                </div>
+              </div>
+            )}
             <AnswerCard
               result={displayResult}
               streamingText={streamingText}

@@ -89,11 +89,6 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
   return (
     <div className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden">
 
-      <div className="px-7 pt-5 pb-4 border-b border-zinc-800">
-        <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Question</p>
-        <p className="text-zinc-300 text-sm font-medium">{result.query}</p>
-      </div>
-
       <div className="px-7 py-5">
         <p className="text-zinc-100 leading-relaxed whitespace-pre-wrap">{result.answer}</p>
       </div>
