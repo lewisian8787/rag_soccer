@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
@@ -255,7 +256,16 @@ def get_top_rated_players(position: str = None, since_date: str = None, limit: i
                 params.append(since_date)
 
             where = " AND ".join(conditions)
-            min_appearances = 1 if since_date else 3
+            if since_date:
+                days = (datetime.now() - datetime.strptime(since_date, "%Y-%m-%d")).days
+                if days <= 35:
+                    min_appearances = 1
+                elif days <= 70:
+                    min_appearances = 4
+                else:
+                    min_appearances = 10
+            else:
+                min_appearances = 10
             params.append(min_appearances)
             params.append(limit)
 
