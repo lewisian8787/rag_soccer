@@ -57,7 +57,7 @@ function App() {
   const hasContent = displayResult || loading || !!streamingText || !!error
 
   return (
-    <div className="flex bg-zinc-950 text-zinc-100 min-h-screen">
+    <div className="flex h-screen overflow-hidden bg-zinc-950 text-zinc-100">
 
       <HistorySidebar
         history={history}
@@ -65,7 +65,7 @@ function App() {
         onSelect={setSelectedIndex}
       />
 
-      <main className="flex-1 flex flex-col items-center px-4 -ml-72">
+      <main className="flex-1 overflow-y-auto flex flex-col items-center px-4 -ml-72">
         <header className="mt-16 mb-12 text-center">
           <div className="flex items-center justify-center gap-3 mb-2">
             <span className="text-3xl">⚽</span>
@@ -153,6 +153,7 @@ function App() {
             </div>
           </div>
         )}
+        <div className="pb-16" />
       </main>
 
     </div>

@@ -19,7 +19,7 @@ const CONFIDENCE_DOT: Record<string, string> = {
 
 export default function HistorySidebar({ history, selectedIndex, onSelect }: Props) {
   return (
-    <aside className="w-72 shrink-0 border-r border-zinc-800 flex flex-col h-screen sticky top-0">
+    <aside className="w-72 shrink-0 border-r border-zinc-800 flex flex-col h-full">
       <div className="px-4 py-5 border-b border-zinc-800">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Session history</p>
         <p className="text-xs text-zinc-700 mt-1">Resets on page refresh</p>
