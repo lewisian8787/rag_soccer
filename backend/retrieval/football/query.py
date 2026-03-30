@@ -42,7 +42,6 @@ Guidelines:
 - If the context doesn't contain enough information, say so
 - Keep answers focused and analytical — avoid vague generalities
 - Be concise — state the fact directly, do not explain how it was calculated or restate the question
-- For leaderboard or ranking questions, aim to return 10 entries unless the user specifies otherwise
 - Only include stats relevant to the question — if goals are asked for, show goals only; if no specific stat is requested, include the key stats for that category
 - For ALL list-based answers, format each item on its own line (use newlines, not commas or semicolons). Add one short sentence before or after the list as context — no further commentary
 - If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge

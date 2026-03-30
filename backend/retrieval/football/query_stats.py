@@ -167,7 +167,7 @@ def get_match_scorers(home_team: str, away_team: str) -> list[dict]:
             return [dict(r) for r in cur.fetchall()]
 
 
-def get_top_scorers(limit: int = 10, since_date: str = None) -> list[dict]:
+def get_top_scorers(limit: int = 50, since_date: str = None) -> list[dict]:
     with get_conn() as conn:
         with conn.cursor() as cur:
             conditions = []
@@ -194,7 +194,7 @@ def get_top_scorers(limit: int = 10, since_date: str = None) -> list[dict]:
             return [dict(r) for r in cur.fetchall()]
 
 
-def get_top_assisters(limit: int = 10, since_date: str = None) -> list[dict]:
+def get_top_assisters(limit: int = 50, since_date: str = None) -> list[dict]:
     with get_conn() as conn:
         with conn.cursor() as cur:
             conditions = []
@@ -241,7 +241,7 @@ POSITION_MAP = {
 }
 
 
-def get_top_rated_players(position: str = None, since_date: str = None, limit: int = 10) -> list[dict]:
+def get_top_rated_players(position: str = None, since_date: str = None, limit: int = 50) -> list[dict]:
     with get_conn() as conn:
         with conn.cursor() as cur:
             conditions = ["s.rating IS NOT NULL"]
@@ -289,7 +289,7 @@ def get_top_rated_players(position: str = None, since_date: str = None, limit: i
             return [dict(r) for r in cur.fetchall()]
 
 
-def get_most_booked_players(card_type: str = "yellow", team_name: str = None, limit: int = 10) -> list[dict]:
+def get_most_booked_players(card_type: str = "yellow", team_name: str = None, limit: int = 50) -> list[dict]:
     with get_conn() as conn:
         with conn.cursor() as cur:
             order_col = "red_cards" if card_type == "red" else "yellow_cards"
@@ -392,7 +392,7 @@ def get_team_attacking_stats(team_name: str, since_date: str = None) -> dict | N
             return dict(row) if row else None
 
 
-def get_league_defensive_ranking(since_date: str = None, limit: int = 10) -> list[dict]:
+def get_league_defensive_ranking(since_date: str = None, limit: int = 20) -> list[dict]:
     """All teams ranked by goals conceded — lowest first. Used for 'best defences' questions."""
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -421,7 +421,7 @@ def get_league_defensive_ranking(since_date: str = None, limit: int = 10) -> lis
             return [dict(r) for r in cur.fetchall()]
 
 
-def get_league_attacking_ranking(since_date: str = None, limit: int = 10) -> list[dict]:
+def get_league_attacking_ranking(since_date: str = None, limit: int = 20) -> list[dict]:
     """All teams ranked by goals scored — highest first. Used for 'most clinical teams' questions."""
     with get_conn() as conn:
         with conn.cursor() as cur:
