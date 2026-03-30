@@ -196,6 +196,8 @@ TOOLS = [
 # --- Dispatcher ---
 # Maps function name returned by the LLM to the actual Python function.
 
+# FINAL TOOL MAP
+
 FUNCTION_MAP = {
     "get_player_season_totals": get_player_season_totals,
     "get_player_goal_history": get_player_goal_history,

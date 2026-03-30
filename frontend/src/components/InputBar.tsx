@@ -3,9 +3,10 @@ import { useState } from 'react'
 interface Props {
   onAsk: (query: string) => void
   loading: boolean
+  mode?: 'football' | 'fpl'
 }
 
-export default function InputBar({ onAsk, loading }: Props) {
+export default function InputBar({ onAsk, loading, mode = 'football' }: Props) {
   const [input, setInput] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
@@ -22,7 +23,7 @@ export default function InputBar({ onAsk, loading }: Props) {
         type="text"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="e.g. Who has been clinical up front recently?"
+        placeholder={mode === 'fpl' ? 'e.g. Who should I captain this week?' : 'e.g. Who has been clinical up front recently?'}
         autoFocus
         className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-5 py-3.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
       />

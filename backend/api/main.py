@@ -1,12 +1,16 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "retrieval"))
+RETRIEVAL_DIR = os.path.join(os.path.dirname(__file__), "..", "retrieval")
+sys.path.insert(0, os.path.join(RETRIEVAL_DIR, "football"))
+sys.path.insert(0, os.path.join(RETRIEVAL_DIR, "fpl"))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from query import ask, stream_ask
+
+import football.query as football_pipeline
+import fpl.query as fpl_pipeline
 
 app = FastAPI()
 
@@ -16,6 +20,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _get_pipeline(mode: str):
+    if mode == "fpl":
+        return fpl_pipeline
+    return football_pipeline
 
 
 @app.get("/health")
@@ -29,7 +39,8 @@ def ask_endpoint(body: dict):
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
 
-    result = ask(
+    pipeline = _get_pipeline(body.get("mode", "football"))
+    result = pipeline.ask(
         query=query,
         from_date=body.get("from_date"),
         gender=body.get("gender"),
@@ -43,8 +54,9 @@ def ask_stream_endpoint(body: dict):
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
 
+    pipeline = _get_pipeline(body.get("mode", "football"))
     return StreamingResponse(
-        stream_ask(
+        pipeline.stream_ask(
             query=query,
             from_date=body.get("from_date"),
             gender=body.get("gender"),

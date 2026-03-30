@@ -5,7 +5,10 @@ import AnswerCard from './components/AnswerCard'
 import HistorySidebar from './components/HistorySidebar'
 import type { HistoryEntry } from './components/HistorySidebar'
 
+type Mode = 'football' | 'fpl'
+
 function App() {
+  const [mode, setMode] = useState<Mode>('football')
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
 
@@ -19,12 +22,16 @@ function App() {
 
   function handleAsk(query: string) {
     setSelectedIndex(null)
-    ask(query)
+    ask(query, mode)
   }
 
-  // The result to display: selected history entry, or the live result
-  const displayResult = selectedIndex !== null ? history[selectedIndex].result : result
+  function handleModeChange(next: Mode) {
+    setMode(next)
+    setSelectedIndex(null)
+    setHistory([])
+  }
 
+  const displayResult = selectedIndex !== null ? history[selectedIndex].result : result
   const hasContent = displayResult || loading || !!streamingText || !!error
 
   return (
@@ -42,7 +49,34 @@ function App() {
             <span className="text-3xl">⚽</span>
             <h1 className="text-4xl font-black tracking-tight text-white">Football Form Guide</h1>
           </div>
-          <p className="text-zinc-500 text-sm">Tactics, form, stats and fantasy — powered by match reports</p>
+          <p className="text-zinc-500 text-sm mb-6">Tactics, form, stats and fantasy — powered by match reports</p>
+
+          {/* Mode toggle */}
+          <div className="inline-flex rounded-xl border border-zinc-700 overflow-hidden">
+            <button
+              onClick={() => handleModeChange('football')}
+              className={`px-5 py-2 text-sm font-semibold transition-colors ${
+                mode === 'football'
+                  ? 'bg-amber-500 text-zinc-950'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Football
+            </button>
+            <button
+              onClick={() => handleModeChange('fpl')}
+              className={`px-5 py-2 text-sm font-semibold transition-colors flex items-center gap-2 ${
+                mode === 'fpl'
+                  ? 'bg-purple-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              FPL
+              <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-purple-900 text-purple-300 border border-purple-700">
+                BETA
+              </span>
+            </button>
+          </div>
         </header>
 
         {hasContent && (
@@ -62,7 +96,7 @@ function App() {
               Ask another question
             </p>
           )}
-          <InputBar onAsk={handleAsk} loading={loading} />
+          <InputBar onAsk={handleAsk} loading={loading} mode={mode} />
         </div>
       </main>
 

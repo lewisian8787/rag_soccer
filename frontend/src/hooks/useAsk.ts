@@ -16,7 +16,7 @@ export function useAsk(onResult?: (r: AskResult) => void) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function ask(query: string) {
+  async function ask(query: string, mode: 'football' | 'fpl' = 'football') {
     setLoading(true)
     setStreamingText('')
     setResult(null)
@@ -26,7 +26,7 @@ export function useAsk(onResult?: (r: AskResult) => void) {
       const res = await fetch('/api/ask/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, mode }),
       })
 
       if (!res.ok) {
