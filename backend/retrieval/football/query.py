@@ -6,8 +6,8 @@ from openai import OpenAI
 from pinecone import Pinecone
 from dotenv import load_dotenv
 
-from stats_tools import TOOLS, FUNCTION_MAP
-from query_stats import format_stats_context
+from football.stats_tools import TOOLS, FUNCTION_MAP
+from football.query_stats import format_stats_context
 
 load_dotenv()
 
