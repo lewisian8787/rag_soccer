@@ -63,9 +63,15 @@ export function useAsk(onResult?: (r: AskResult) => void) {
               sources: event.sources ?? [],
               caveat: event.caveat ?? null,
               query,
-              query_types: [],
-              retrieval_scores: [],
+              query_types: event.query_types ?? [],
+              retrieval_scores: event.retrieval_scores ?? [],
             }
+            console.group(`[FFG] ${query}`)
+            console.log('Pipeline:', r.query_types.join(' + ') || 'unknown')
+            console.log('Confidence:', r.confidence)
+            if (r.retrieval_scores.length) console.log('Retrieval scores:', r.retrieval_scores)
+            if (r.caveat) console.log('Caveat:', r.caveat)
+            console.groupEnd()
             setResult(r)
             setStreamingText('')
             onResult?.(r)

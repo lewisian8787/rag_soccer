@@ -48,6 +48,9 @@ Guidelines:
 - If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge
 - Stick to a particular season if it is specified
 - For tactical questions, only respond with information across a reasonable time frame
+- Avoid pointless statements or repeating yourself
+- If you are presenting a list, number each entry
+- Don't ever use the phrase, based on the context available, or something similar as it is implied
 
 Output your response in EXACTLY this format — answer text first, then the delimiter, then metadata JSON:
 
@@ -288,7 +291,7 @@ def _build_user_message(query, chunks, stats_context, used_fallback):
     return f"{context_block}{fallback_note}\n\nQuestion: {query}"
 
 
-def stream_generate(query, chunks, stats_context="", used_fallback=False):
+def stream_generate(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None):
     """Yields SSE events: token events for each answer chunk, then a done event with metadata."""
     rag_context = build_context(chunks)
 
@@ -357,6 +360,8 @@ def stream_generate(query, chunks, stats_context="", used_fallback=False):
         "confidence": meta.get("confidence", "low"),
         "sources": meta.get("sources", []),
         "caveat": meta.get("caveat"),
+        "query_types": query_types or [],
+        "retrieval_scores": retrieval_scores or [],
     })
     yield f"data: {done_event}\n\n"
 
@@ -378,7 +383,8 @@ def stream_ask(query, from_date=None, gender=None):
         if "rag" in query_types:
             chunks, used_fallback = retrieve(query, from_date=from_date, gender=gender)
 
-        yield from stream_generate(query, chunks, stats_context=stats_context, used_fallback=used_fallback)
+        retrieval_scores = [round(c["score"], 4) for c in chunks]
+        yield from stream_generate(query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores)
 
     except Exception as e:
         import traceback
