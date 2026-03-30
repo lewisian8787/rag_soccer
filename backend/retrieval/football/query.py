@@ -291,6 +291,7 @@ def _build_user_message(query, chunks, stats_context, used_fallback):
     return f"{context_block}{fallback_note}\n\nQuestion: {query}"
 
 
+#using Open AI's stream property = true to formulate the reply as a stream and not as a single block
 def stream_generate(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None):
     """Yields SSE events: token events for each answer chunk, then a done event with metadata."""
     rag_context = build_context(chunks)
