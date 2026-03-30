@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 import football.query as football_pipeline
-import fpl.query as fpl_pipeline
+import fpl.query as fpl_pipeline  # noqa: F401 — fpl stub
 
 app = FastAPI()
 
@@ -31,20 +31,6 @@ def _get_pipeline(mode: str):
 def health():
     return {"status": "ok"}
 
-
-@app.post("/api/ask")
-def ask_endpoint(body: dict):
-    query = body.get("query", "").strip()
-    if not query:
-        raise HTTPException(status_code=400, detail="query is required")
-
-    pipeline = _get_pipeline(body.get("mode", "football"))
-    result = pipeline.ask(
-        query=query,
-        from_date=body.get("from_date"),
-        gender=body.get("gender"),
-    )
-    return result
 
 
 @app.post("/api/ask/stream")

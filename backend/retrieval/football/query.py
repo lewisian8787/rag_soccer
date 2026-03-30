@@ -24,7 +24,9 @@ MIN_SCORE = 0.45
 
 # --- System prompt ---
 
-SYSTEM_PROMPT = """
+# stream = true on request to Open AI generates token by token
+
+STREAM_SYSTEM_PROMPT = """
 You are an expert football tactics analyst with deep knowledge of the game.
 You answer questions about tactics, team setups, player form and fantasy football.
 
@@ -32,33 +34,33 @@ You are given two types of context:
 1. MATCH REPORT EXCERPTS — narrative descriptions from match reports
 2. STRUCTURED STATS — factual data from a stats database (goals, assists, ratings etc.)
 
-Use both sources where available. Structured stats take priority for factual claims
-(e.g. goal counts, dates of goals). Match reports provide tactical and narrative context.
-
-Always respond in the following JSON format:
-{
-  "answer": "Your detailed answer here",
-  "confidence": "high | medium | low",
-  "sources": [
-    {"title": "Match title", "published_at": "YYYY-MM-DD"}
-  ],
-  "caveat": "Any important limitations or caveats, or null if none"
-}
+Use both sources where available. Structured stats take priority for factual claims.
+Match reports provide tactical and narrative context.
 
 Guidelines:
 - Base your answer only on the provided context — do not use outside knowledge
-- If the context doesn't contain enough information, say so and set confidence to low
+- If the context doesn't contain enough information, say so
 - Keep answers focused and analytical — avoid vague generalities
 - Be concise — state the fact directly, do not explain how it was calculated or restate the question
-- For leaderboard or ranking questions (top scorers, top assisters, most booked etc.), aim to return 10 entries unless the user specifies a different number
-- Only include stats that are relevant to the question — if goals are asked for, show goals only; if no specific stat is requested, include the key stats for that category (e.g. goals + assists for scorers, rating + appearances for ratings)
+- For leaderboard or ranking questions, aim to return 10 entries unless the user specifies otherwise
+- Only include stats relevant to the question — if goals are asked for, show goals only; if no specific stat is requested, include the key stats for that category
 - For ALL list-based answers, format each item on its own line (use newlines, not commas or semicolons). Add one short sentence before or after the list as context — no further commentary
-- Sources should only include match reports you actually drew from
-- Set caveat to null if there are no limitations worth flagging
 - If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge
 - Stick to a particular season if it is specified
-- For tactical questions, only respond with information across a reasonable time frame (e.g. there is no point in drawing example from 5 years ago, or when a different manager was in charge.)
+- For tactical questions, only respond with information across a reasonable time frame
+
+Output your response in EXACTLY this format — answer text first, then the delimiter, then metadata JSON:
+
+[Your answer here as plain prose]
+<<<META>>>
+{"confidence": "high|medium|low", "sources": [{"title": "...", "published_at": "YYYY-MM-DD"}], "caveat": "..." or null}
+
+Rules for the metadata:
+- sources should only include match reports you actually drew from
+- caveat should be null if there are no limitations worth flagging
 """
+
+
 
 
 # --- Query classification ---
@@ -226,54 +228,6 @@ def build_context(chunks):
     return "\n\n---\n\n".join(context_parts)
 
 
-# --- Generate answer from LLM ---
-
-def generate(query, chunks, stats_context="", used_fallback=False):
-
-    # format the retrieved chunk strings and metadata into one long string
-    rag_context = build_context(chunks)
-
-    if not rag_context and not stats_context:
-        return {
-            "answer": "I couldn't find enough relevant information to answer this question.",
-            "confidence": "low",
-            "sources": [],
-            "caveat": "No relevant match reports or stats found."
-        }
-    
-    # for questions needing the stats tool and rag, weaving them together into a string
-    sections = []
-    if stats_context:
-        sections.append(f"STRUCTURED STATS:\n\n{stats_context}")
-    if rag_context:
-        sections.append(f"MATCH REPORT EXCERPTS:\n\n{rag_context}")
-
-    context_block = "\n\n" + "\n\n".join(sections)
-
-    fallback_note = (
-        "\n\nNote: No match reports were found for the current season. "
-        "The following context is from the previous season (2024/25). "
-        "Make clear in your answer and caveat that this is last season's data."
-        if used_fallback else ""
-    )
-
-    #concatenating the user query
-    user_message = f"{context_block}{fallback_note}\n\nQuestion: {query}"
-
-    #adding the system prompt and calling the model
-    response = openai_client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
-        # not structured output yet
-        response_format={"type": "json_object"},
-    )
-
-    return json.loads(response.choices[0].message.content)
-
-
 # --- Main query function ---
 
 RECENCY_PATTERN = re.compile(
@@ -291,66 +245,31 @@ RECENCY_PATTERN = re.compile(
 
 
 def ask(query, from_date=None, gender=None):
-    query_types = classify_query(query)
-
-    # Added: default to last 30 days for obviously recent queries
-    if from_date is None and RECENCY_PATTERN.search(query):
-        from_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-
-    stats_context = ""
-    if "stats" in query_types:
-        stats_context = fetch_stats_context(query, since_date=from_date)
-
-    chunks = []
-    used_fallback = False
-    if "rag" in query_types:
-        chunks, used_fallback = retrieve(query, from_date=from_date, gender=gender)
-
-    result = generate(query, chunks, stats_context=stats_context, used_fallback=used_fallback)
-    result["query"] = query
-    result["query_types"] = list(query_types)
-    result["retrieval_scores"] = [round(c["score"], 4) for c in chunks]
-    return result
+    """Non-streaming entry point — collects stream_ask output into a dict. Used by tests and CLI."""
+    answer_parts = []
+    meta = {}
+    for raw in stream_ask(query, from_date=from_date, gender=gender):
+        if not raw.startswith("data: "):
+            continue
+        event = json.loads(raw[6:])
+        if event["type"] == "token":
+            answer_parts.append(event["text"])
+        elif event["type"] == "done":
+            meta = event
+    return {
+        "answer": "".join(answer_parts),
+        "confidence": meta.get("confidence", "low"),
+        "sources": meta.get("sources", []),
+        "caveat": meta.get("caveat"),
+        "query": query,
+        "query_types": meta.get("query_types", []),
+        "retrieval_scores": [],
+    }
 
 
 # --- Streaming system prompt ---
 # Instructs the model to output answer text, then a delimiter, then compact metadata JSON.
 # This lets us stream the answer tokens and parse metadata cleanly at the end.
-
-STREAM_SYSTEM_PROMPT = """
-You are an expert football tactics analyst with deep knowledge of the game.
-You answer questions about tactics, team setups, player form and fantasy football.
-
-You are given two types of context:
-1. MATCH REPORT EXCERPTS — narrative descriptions from match reports
-2. STRUCTURED STATS — factual data from a stats database (goals, assists, ratings etc.)
-
-Use both sources where available. Structured stats take priority for factual claims.
-Match reports provide tactical and narrative context.
-
-Guidelines:
-- Base your answer only on the provided context — do not use outside knowledge
-- If the context doesn't contain enough information, say so
-- Keep answers focused and analytical — avoid vague generalities
-- Be concise — state the fact directly, do not explain how it was calculated or restate the question
-- For leaderboard or ranking questions, aim to return 10 entries unless the user specifies otherwise
-- Only include stats relevant to the question — if goals are asked for, show goals only; if no specific stat is requested, include the key stats for that category
-- For ALL list-based answers, format each item on its own line (use newlines, not commas or semicolons). Add one short sentence before or after the list as context — no further commentary
-- If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge
-- Stick to a particular season if it is specified
-- For tactical questions, only respond with information across a reasonable time frame
-
-Output your response in EXACTLY this format — answer text first, then the delimiter, then metadata JSON:
-
-[Your answer here as plain prose]
-<<<META>>>
-{"confidence": "high|medium|low", "sources": [{"title": "...", "published_at": "YYYY-MM-DD"}], "caveat": "..." or null}
-
-Rules for the metadata:
-- sources should only include match reports you actually drew from
-- caveat should be null if there are no limitations worth flagging
-"""
-
 
 def _build_user_message(query, chunks, stats_context, used_fallback):
     rag_context = build_context(chunks)
