@@ -2,8 +2,7 @@ import sys
 import os
 
 RETRIEVAL_DIR = os.path.join(os.path.dirname(__file__), "..", "retrieval")
-sys.path.insert(0, os.path.join(RETRIEVAL_DIR, "football"))
-sys.path.insert(0, os.path.join(RETRIEVAL_DIR, "fpl"))
+sys.path.insert(0, RETRIEVAL_DIR)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
