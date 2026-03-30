@@ -382,6 +382,8 @@ def stream_ask(query, from_date=None, gender=None):
         used_fallback = False
         if "rag" in query_types:
             chunks, used_fallback = retrieve(query, from_date=from_date, gender=gender)
+            if chunks and all(c["score"] < 0.55 for c in chunks):
+                chunks = []
 
         retrieval_scores = [round(c["score"], 4) for c in chunks]
         yield from stream_generate(query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores)
