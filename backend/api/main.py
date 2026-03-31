@@ -35,11 +35,20 @@ def health():
 
 @app.post("/api/ask/stream")
 def ask_stream_endpoint(body: dict):
+    # Extract and validate the query string from the request body.
     query = body.get("query", "").strip()
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
 
+    # Select the correct pipeline module based on the mode sent by the frontend
+    # ("football" or "fpl"). Defaults to football if not provided.
     pipeline = _get_pipeline(body.get("mode", "football"))
+
+    # Call stream_ask on the selected pipeline — this returns a generator that
+    # yields SSE events (tokens, then a final done event) as the LLM responds.
+    # StreamingResponse wraps the generator and forwards each yielded chunk to
+    # the browser in real time. Cache-Control and X-Accel-Buffering headers
+    # prevent nginx or the browser from buffering the stream.
     return StreamingResponse(
         pipeline.stream_ask(
             query=query,
