@@ -7,7 +7,7 @@ import json
 import pytest
 from unittest.mock import patch, Mock
 
-from football.query import classify_query
+from football.football_pipeline import classify_query
 
 
 # --- Test Data ---
@@ -128,7 +128,7 @@ class TestClassifyQueryMocked:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.query.openai_client") as mock:
+        with patch("football.football_pipeline.openai_client") as mock:
             yield mock
 
     def _setup_mock_response(self, mock_openai, types: list[str]):

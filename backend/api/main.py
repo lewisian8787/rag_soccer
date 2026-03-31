@@ -8,8 +8,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-import football.query as football_pipeline
-import fpl.query as fpl_pipeline  # noqa: F401 — fpl stub
+import football.football_pipeline as football_pipeline
+import fpl.fpl_pipeline as fpl_pipeline  # noqa: F401 — fpl stub
 
 app = FastAPI()
 
@@ -22,6 +22,7 @@ app.add_middleware(
 
 
 def _get_pipeline(mode: str):
+    # mode is contained in the request body
     if mode == "fpl":
         return fpl_pipeline
     return football_pipeline
@@ -32,7 +33,7 @@ def health():
     return {"status": "ok"}
 
 
-
+# main and really only route.
 @app.post("/api/ask/stream")
 def ask_stream_endpoint(body: dict):
     # Extract and validate the query string from the request body.
@@ -41,16 +42,12 @@ def ask_stream_endpoint(body: dict):
         raise HTTPException(status_code=400, detail="query is required")
 
     # Select the correct pipeline module based on the mode sent by the frontend
-    # ("football" or "fpl"). Defaults to football if not provided.
     pipeline = _get_pipeline(body.get("mode", "football"))
 
-    # Call stream_ask on the selected pipeline — this returns a generator that
-    # yields SSE events (tokens, then a final done event) as the LLM responds.
-    # StreamingResponse wraps the generator and forwards each yielded chunk to
-    # the browser in real time. Cache-Control and X-Accel-Buffering headers
-    # prevent nginx or the browser from buffering the stream.
+    # wraps the return in FastAPI's StreamingRepsonse object, which sends tokens back
+    # to the front end as soon as they are generated. 
     return StreamingResponse(
-        pipeline.stream_ask(
+        pipeline.run_pipeline(
             query=query,
             from_date=body.get("from_date"),
             gender=body.get("gender"),

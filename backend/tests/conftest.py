@@ -11,7 +11,7 @@ from datetime import datetime
 @pytest.fixture
 def mock_openai_client():
     """Mock the OpenAI client for all API calls."""
-    with patch("football.query.openai_client") as mock:
+    with patch("football.football_pipeline.openai_client") as mock:
         yield mock
 
 
@@ -87,7 +87,7 @@ def mock_stream_response():
 @pytest.fixture
 def mock_pinecone_index():
     """Mock the Pinecone index for vector queries."""
-    with patch("football.query.index") as mock:
+    with patch("football.football_pipeline.index") as mock:
         yield mock
 
 
@@ -168,7 +168,7 @@ def sample_stats_context():
 @pytest.fixture
 def mock_stats_functions():
     """Mock the stats query functions."""
-    with patch("football.query.FUNCTION_MAP") as mock:
+    with patch("football.football_pipeline.FUNCTION_MAP") as mock:
         mock.get.return_value = Mock(return_value=[
             {"player_name": "Mohamed Salah", "goals": 12, "assists": 8}
         ])

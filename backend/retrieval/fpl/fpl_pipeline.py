@@ -1,7 +1,7 @@
 import json
 
 
-def stream_ask(query, from_date=None, gender=None):
+def run_pipeline(query, from_date=None, gender=None):
     """FPL pipeline — stub. No data ingested yet."""
     msg = (
         "FPL mode is coming soon. "

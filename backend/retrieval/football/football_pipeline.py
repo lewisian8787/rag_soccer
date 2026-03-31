@@ -43,7 +43,8 @@ Guidelines:
 - Keep answers focused and analytical — avoid vague generalities
 - Be concise — state the fact directly, do not explain how it was calculated or restate the question
 - Only include stats relevant to the question — if goals are asked for, show goals only; if no specific stat is requested, include the key stats for that category
-- For ALL list-based answers, format each item on its own line (use newlines, not commas or semicolons). Add one short sentence before or after the list as context — no further commentary
+- For questions about a specific match (result, scorers, what happened), write the answer as a brief match report in plain prose — 3 to 4 sentences covering the result, who scored, and any notable context. Do not use a list format for this
+- For ALL other list-based answers, format each item on its own line (use newlines, not commas or semicolons). Add one short sentence before or after the list as context — no further commentary
 - If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge
 - Stick to a particular season if it is specified
 - For tactical questions, only respond with information across a reasonable time frame
@@ -197,11 +198,12 @@ def get_embedding(text):
 CURRENT_SEASON_DATE = "2025-08-01"   # start of 2025/26 season
 FALLBACK_SEASON_DATE = "2024-08-01"  # start of 2024/25 season — fallback if current season empty
 
-
+# returns chunks from vector db
 def retrieve(query, from_date=None, gender=None):
     # text string query from the user gets embedded. Return 1536 dimension vector
     embedding = get_embedding(query)
 
+    # function to call to the vector db
     def _query_pinecone(cutoff_date):
         pinecone_filter = {}
         if cutoff_date:
@@ -271,10 +273,10 @@ RECENCY_PATTERN = re.compile(
 
 
 def ask(query, from_date=None, gender=None):
-    """Non-streaming entry point — collects stream_ask output into a dict. Used by tests and CLI."""
+    """Non-streaming entry point — collects run_pipeline output into a dict. Used by tests and CLI."""
     answer_parts = []
     meta = {}
-    for raw in stream_ask(query, from_date=from_date, gender=gender):
+    for raw in run_pipeline(query, from_date=from_date, gender=gender):
         if not raw.startswith("data: "):
             continue
         event = json.loads(raw[6:])
@@ -314,8 +316,12 @@ def _build_user_message(query, chunks, stats_context, used_fallback):
     return f"{context_block}{fallback_note}\n\nQuestion: {query}"
 
 
-#using Open AI's stream property = true to formulate the reply as a stream and not as a single block
-def stream_generate(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None):
+# --- Final synthesis and streaming layer ---
+# Receives the assembled context (RAG chunks + stats) from run_pipeline, makes the
+# single answer-generating LLM call with stream=True, and yields SSE token events
+# in real time. Holds back chars around the <<<META>>> delimiter to avoid splitting
+# it mid-stream, then parses the trailing metadata JSON and emits a final done event.
+def generate_response(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None):
     """Yields SSE events: token events for each answer chunk, then a done event with metadata."""
     rag_context = build_context(chunks)
 
@@ -331,6 +337,7 @@ def stream_generate(query, chunks, stats_context="", used_fallback=False, query_
         yield f"data: {no_data}\n\n"
         return
 
+    # formulate final message to LLM, including all relevent context now
     user_message = _build_user_message(query, chunks, stats_context, used_fallback)
 
     response = openai_client.chat.completions.create(
@@ -390,16 +397,17 @@ def stream_generate(query, chunks, stats_context="", used_fallback=False, query_
     yield f"data: {done_event}\n\n"
 
 
-def stream_ask(query, from_date=None, gender=None):
+# --- Orchestration layer ---
+# Normalises the query, classifies it (rag/stats/both), applies recency date logic,
+# fetches stats via LLM tool calling and/or retrieves Pinecone chunks, then delegates
+# to generate_response to make the final LLM synthesis call and stream the answer.
+def run_pipeline(query, from_date=None, gender=None):
     """Pipeline entry point for streaming responses."""
     try:
         # Preserve the original query so user doesn't see normalized
         original_query = query
 
         # Normalise abbreviations and nicknames before anything else touches the
-        # query — e.g. 'Wolves' → 'Wolverhampton', 'DCL' → 'Calvert-Lewin'.
-        # This ensures both Pinecone embedding and stats tool parameter extraction
-        # work against the full names that appear in the source data.
         query = rewrite_query(query)
 
         # Classify the query to determine which pipelines to run.
@@ -424,14 +432,13 @@ def stream_ask(query, from_date=None, gender=None):
         used_fallback = False
         if "rag" in query_types:
             chunks, used_fallback = retrieve(query, from_date=from_date, gender=gender)
-            if chunks and all(c["score"] < 0.55 for c in chunks):
+            if chunks and all(c["score"] < 0.50 for c in chunks):
                 chunks = []
 
         retrieval_scores = [round(c["score"], 4) for c in chunks]
 
-        # Stream the answer back token by token as SSE events, passing the
-        # original query so it displays correctly in the frontend.
-        yield from stream_generate(original_query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores)
+        # all data has been collected from tools/calls. Yield to generate_response to generate reponse
+        yield from generate_response(original_query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores)
 
     except Exception as e:
         import traceback

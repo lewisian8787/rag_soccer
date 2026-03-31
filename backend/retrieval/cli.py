@@ -1,6 +1,6 @@
 import json
 import sys
-from query import ask
+from football.football_pipeline import ask
 
 def print_result(result):
     print(f"\nAnswer: {result['answer']}")

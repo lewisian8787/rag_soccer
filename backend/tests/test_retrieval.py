@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import patch, Mock
 from datetime import datetime
 
-from football.query import retrieve, get_embedding, MIN_SCORE
+from football.football_pipeline import retrieve, get_embedding, MIN_SCORE
 
 
 # --- Test Data ---
@@ -34,7 +34,7 @@ class TestGetEmbedding:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.query.openai_client") as mock:
+        with patch("football.football_pipeline.openai_client") as mock:
             mock_response = Mock()
             mock_response.data = [Mock()]
             mock_response.data[0].embedding = [0.1] * 1536
@@ -56,7 +56,7 @@ class TestRetrieveMocked:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.query.openai_client") as mock:
+        with patch("football.football_pipeline.openai_client") as mock:
             mock_response = Mock()
             mock_response.data = [Mock()]
             mock_response.data[0].embedding = [0.1] * 1536
@@ -65,7 +65,7 @@ class TestRetrieveMocked:
 
     @pytest.fixture
     def mock_pinecone(self):
-        with patch("football.query.index") as mock:
+        with patch("football.football_pipeline.index") as mock:
             yield mock
 
     def test_queries_pinecone_with_top_k(self, mock_openai, mock_pinecone):
@@ -154,7 +154,7 @@ class TestRetrievalScoreQuality:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.query.openai_client") as mock:
+        with patch("football.football_pipeline.openai_client") as mock:
             mock_response = Mock()
             mock_response.data = [Mock()]
             mock_response.data[0].embedding = [0.1] * 1536
@@ -163,7 +163,7 @@ class TestRetrievalScoreQuality:
 
     @pytest.fixture
     def mock_pinecone(self):
-        with patch("football.query.index") as mock:
+        with patch("football.football_pipeline.index") as mock:
             yield mock
 
     def test_high_score_chunks_retained(self, mock_openai, mock_pinecone):

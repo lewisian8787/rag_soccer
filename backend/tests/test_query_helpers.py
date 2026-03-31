@@ -7,7 +7,7 @@ import pytest
 from datetime import datetime
 
 # Import the functions and constants to test
-from football.query import build_context, _build_user_message, RECENCY_PATTERN
+from football.football_pipeline import build_context, _build_user_message, RECENCY_PATTERN
 
 
 class TestBuildContext:

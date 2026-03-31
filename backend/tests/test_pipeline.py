@@ -8,12 +8,12 @@ import pytest
 from unittest.mock import patch, Mock, MagicMock
 from datetime import datetime
 
-from football.query import (
+from football.football_pipeline import (
     ask,
-    stream_ask,
+    run_pipeline,
     retrieve,
     fetch_stats_context,
-    stream_generate,
+    generate_response,
     rewrite_query,
     MIN_SCORE,
 )
@@ -51,7 +51,7 @@ class TestRewriteQuery:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.query.openai_client") as mock:
+        with patch("football.football_pipeline.openai_client") as mock:
             yield mock
 
     def test_expands_abbreviations(self, mock_openai):
@@ -78,7 +78,7 @@ class TestRetrieve:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.query.openai_client") as mock:
+        with patch("football.football_pipeline.openai_client") as mock:
             # Mock embedding response
             mock_response = Mock()
             mock_response.data = [Mock()]
@@ -88,7 +88,7 @@ class TestRetrieve:
 
     @pytest.fixture
     def mock_pinecone(self):
-        with patch("football.query.index") as mock:
+        with patch("football.football_pipeline.index") as mock:
             yield mock
 
     def test_filters_below_min_score(self, mock_openai, mock_pinecone):
@@ -163,12 +163,12 @@ class TestFetchStatsContext:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.query.openai_client") as mock:
+        with patch("football.football_pipeline.openai_client") as mock:
             yield mock
 
     @pytest.fixture
     def mock_function_map(self):
-        with patch("football.query.FUNCTION_MAP") as mock:
+        with patch("football.football_pipeline.FUNCTION_MAP") as mock:
             yield mock
 
     def test_returns_empty_when_no_tool_calls(self, mock_openai, mock_function_map):
@@ -195,7 +195,7 @@ class TestFetchStatsContext:
         mock_fn = Mock(return_value=[{"player_name": "Salah", "goals": 10}])
         mock_function_map.get.return_value = mock_fn
 
-        with patch("football.query.format_stats_context", return_value="Salah: 10 goals"):
+        with patch("football.football_pipeline.format_stats_context", return_value="Salah: 10 goals"):
             result = fetch_stats_context("How many goals has Salah scored?")
 
         mock_fn.assert_called_once_with(player_name="Salah")
@@ -203,15 +203,15 @@ class TestFetchStatsContext:
 
 
 class TestStreamGenerate:
-    """Tests for the stream_generate() function."""
+    """Tests for the generate_response() function."""
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.query.openai_client") as mock:
+        with patch("football.football_pipeline.openai_client") as mock:
             yield mock
 
     def test_yields_no_data_message_when_empty_context(self, mock_openai):
-        events = list(stream_generate("test", chunks=[], stats_context=""))
+        events = list(generate_response("test", chunks=[], stats_context=""))
 
         # Should yield token + done events
         assert len(events) == 2
@@ -228,7 +228,7 @@ class TestStreamGenerate:
         mock_openai.chat.completions.create.return_value = iter(mock_chunks)
 
         sample_chunks = [{"score": 0.8, "metadata": {"title": "M", "published_at": 1700000000, "chunk_text": "T"}}]
-        events = list(stream_generate("test", chunks=sample_chunks))
+        events = list(generate_response("test", chunks=sample_chunks))
 
         # Parse events
         token_events = [e for e in events if '"type": "token"' in e]
@@ -241,7 +241,7 @@ class TestStreamGenerate:
         mock_openai.chat.completions.create.return_value = iter([])
 
         sample_chunks = [{"score": 0.8, "metadata": {"title": "M", "published_at": 1700000000, "chunk_text": "T"}}]
-        events = list(stream_generate("test", chunks=sample_chunks, query_types=["rag", "stats"]))
+        events = list(generate_response("test", chunks=sample_chunks, query_types=["rag", "stats"]))
 
         done_event = [e for e in events if '"type": "done"' in e][0]
         data = json.loads(done_event.replace("data: ", "").strip())
@@ -253,12 +253,12 @@ class TestAsk:
     """Tests for the ask() function (non-streaming wrapper)."""
 
     @pytest.fixture
-    def mock_stream_ask(self):
-        with patch("football.query.stream_ask") as mock:
+    def mock_run_pipeline(self):
+        with patch("football.football_pipeline.run_pipeline") as mock:
             yield mock
 
-    def test_aggregates_stream_tokens(self, mock_stream_ask):
-        mock_stream_ask.return_value = iter([
+    def test_aggregates_stream_tokens(self, mock_run_pipeline):
+        mock_run_pipeline.return_value = iter([
             'data: {"type": "token", "text": "Hello "}\n\n',
             'data: {"type": "token", "text": "world"}\n\n',
             'data: {"type": "done", "confidence": "high", "sources": [], "caveat": null}\n\n',
@@ -269,8 +269,8 @@ class TestAsk:
         assert result["answer"] == "Hello world"
         assert result["confidence"] == "high"
 
-    def test_preserves_metadata(self, mock_stream_ask):
-        mock_stream_ask.return_value = iter([
+    def test_preserves_metadata(self, mock_run_pipeline):
+        mock_run_pipeline.return_value = iter([
             'data: {"type": "token", "text": "Answer"}\n\n',
             'data: {"type": "done", "confidence": "medium", "sources": [{"title": "Match"}], "caveat": "Limited data", "query_types": ["rag"]}\n\n',
         ])
