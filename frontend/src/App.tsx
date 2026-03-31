@@ -65,7 +65,7 @@ function App() {
         onSelect={setSelectedIndex}
       />
 
-      <main className="flex-1 overflow-y-auto flex flex-col items-center px-4 -ml-72">
+      <main className="flex-1 overflow-y-auto flex flex-col items-center px-4">
         <header className="mt-16 mb-12 text-center">
           <div className="flex items-center justify-center gap-3 mb-2">
             <span className="text-3xl">⚽</span>

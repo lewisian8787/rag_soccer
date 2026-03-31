@@ -1,0 +1,23 @@
+[project]
+name = "rag-football-backend"
+version = "0.1.0"
+description = "RAG-powered football analytics chatbot backend"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "live: tests requiring real API calls (deselect with -m 'not live')",
+]
+addopts = "-v --tb=short"
+pythonpath = [".", "retrieval"]
+
+[tool.coverage.run]
+source = ["retrieval"]
+omit = ["tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
