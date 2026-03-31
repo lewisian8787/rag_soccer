@@ -148,6 +148,7 @@ def get_match_scorers(home_team: str, away_team: str) -> list[dict]:
             cur.execute("""
                 SELECT
                     p.name,
+                    s.team,
                     s.goals,
                     s.assists,
                     m.home_team,
@@ -158,12 +159,14 @@ def get_match_scorers(home_team: str, away_team: str) -> list[dict]:
                 FROM api_player_match_stats s
                 JOIN api_players p ON p.id = s.player_id
                 JOIN api_matches m ON m.id = s.match_id
-                WHERE m.home_team ILIKE %s
-                  AND m.away_team ILIKE %s
+                WHERE (
+                    (m.home_team ILIKE %s AND m.away_team ILIKE %s)
+                    OR (m.home_team ILIKE %s AND m.away_team ILIKE %s)
+                )
                   AND (s.goals > 0 OR s.assists > 0)
                 ORDER BY m.date DESC, s.goals DESC
                 LIMIT 50
-            """, (f"%{home_team}%", f"%{away_team}%"))
+            """, (f"%{home_team}%", f"%{away_team}%", f"%{away_team}%", f"%{home_team}%"))
             return [dict(r) for r in cur.fetchall()]
 
 

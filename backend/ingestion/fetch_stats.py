@@ -58,6 +58,7 @@ def save_player_stats(cur, fixture_id):
     data = get("/fixtures/players", params={"fixture": fixture_id})
 
     for team_data in data["response"]:
+        team_name = team_data["team"]["name"]
         for player_data in team_data["players"]:
             player = player_data["player"]
             stats = player_data["statistics"][0]
@@ -83,12 +84,13 @@ def save_player_stats(cur, fixture_id):
             # Insert player match stats
             cur.execute("""
                 INSERT INTO api_player_match_stats
-                    (player_id, match_id, minutes, goals, assists, yellow_cards, red_cards, rating, position, substitute)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (player_id, match_id, team, minutes, goals, assists, yellow_cards, red_cards, rating, position, substitute)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING
             """, (
                 player["id"],
                 fixture_id,
+                team_name,
                 games["minutes"],
                 goals["total"] or 0,
                 goals["assists"] or 0,
@@ -98,6 +100,49 @@ def save_player_stats(cur, fixture_id):
                 games["position"],
                 games["substitute"],
             ))
+
+
+# --- Backfill team column ---
+# Re-fetches /fixtures/players for every match where team IS NULL and updates rows.
+# Safe to re-run; stops when all rows are populated.
+
+def backfill_teams():
+    conn = psycopg2.connect(DB_CONN)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT DISTINCT match_id FROM api_player_match_stats WHERE team IS NULL
+    """)
+    match_ids = [row[0] for row in cur.fetchall()]
+    print(f"Backfilling team for {len(match_ids)} fixtures...")
+
+    failed = []
+    for i, match_id in enumerate(match_ids, 1):
+        try:
+            data = get("/fixtures/players", params={"fixture": match_id})
+            for team_data in data["response"]:
+                team_name = team_data["team"]["name"]
+                player_ids = [p["player"]["id"] for p in team_data["players"]]
+                if not player_ids:
+                    continue
+                cur.execute("""
+                    UPDATE api_player_match_stats
+                    SET team = %s
+                    WHERE match_id = %s AND player_id = ANY(%s) AND team IS NULL
+                """, (team_name, match_id, player_ids))
+            conn.commit()
+            print(f"  [{i}/{len(match_ids)}] fixture {match_id}: done")
+        except Exception as e:
+            conn.rollback()
+            print(f"  [FAILED] fixture {match_id}: {e}")
+            failed.append(match_id)
+        time.sleep(0.3)
+
+    cur.close()
+    conn.close()
+    print(f"\nDone. Failed: {len(failed)}")
+    if failed:
+        print(f"Failed IDs: {failed}")
 
 
 # --- Main ingestion loop ---
@@ -143,4 +188,8 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    import sys
+    if "--backfill" in sys.argv:
+        backfill_teams()
+    else:
+        run()

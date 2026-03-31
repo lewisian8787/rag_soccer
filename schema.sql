@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS api_player_match_stats (
     id              SERIAL PRIMARY KEY,
     player_id       INTEGER REFERENCES api_players(id),
     match_id        INTEGER REFERENCES api_matches(id),
+    team            TEXT,
     minutes         INTEGER,
     goals           INTEGER,
     assists         INTEGER,
