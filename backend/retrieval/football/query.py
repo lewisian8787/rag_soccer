@@ -62,9 +62,6 @@ Rules for the metadata:
 - caveat should be null if there are no limitations worth flagging
 """
 
-
-
-
 # --- Query classification ---
 # Uses gpt-4o-mini to decide whether the query needs structured stats, RAG, or both.
 
@@ -89,7 +86,33 @@ Respond with valid JSON only, no explanation:
 {"types": ["rag", "stats"]}
 """
 
+# CLASSIFYING CALL TO NORMALIZE ANY ABBREVIATIONS OR NICKNAMES
 
+def rewrite_query(query: str) -> str:
+    response = openai_client.chat.completions.create(
+        model=CLASSIFIER_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a football query normaliser. "
+                    "Expand any abbreviations, nicknames or shorthand in the user's question to full proper names. "
+                    "Examples: 'Wolves' → 'Wolverhampton', 'Spurs' → 'Tottenham', 'Villa' → 'Aston Villa', "
+                    "'Man City' → 'Manchester City', 'Man Utd' → 'Manchester United', "
+                    "'Forest' → 'Nottingham Forest', 'DCL' → 'Calvert-Lewin', "
+                    "'KDB' → 'De Bruyne', 'TAA' → 'Trent Alexander-Arnold'. "
+                    "Preserve the original phrasing and intent exactly — do not rephrase, summarise or add information. "
+                    "Return only the rewritten question as a plain string, nothing else."
+                )
+            },
+            {"role": "user", "content": query},
+        ],
+        temperature=0,
+        max_tokens=100,
+    )
+    return response.choices[0].message.content.strip()
+
+# CLASSIFYING CALL TO OPENAI, DETERMINING IF STATS/RAG/RAG&STATS PIPELINE
 def classify_query(query: str) -> set[str]:
     response = openai_client.chat.completions.create(
         model=CLASSIFIER_MODEL,
@@ -369,15 +392,33 @@ def stream_generate(query, chunks, stats_context="", used_fallback=False, query_
 def stream_ask(query, from_date=None, gender=None):
     """Pipeline entry point for streaming responses."""
     try:
+        # Preserve the original query so user doesn't see normalized
+        original_query = query
+
+        # Normalise abbreviations and nicknames before anything else touches the
+        # query — e.g. 'Wolves' → 'Wolverhampton', 'DCL' → 'Calvert-Lewin'.
+        # This ensures both Pinecone embedding and stats tool parameter extraction
+        # work against the full names that appear in the source data.
+        query = rewrite_query(query)
+
+        # Classify the query to determine which pipelines to run.
+        # Returns a set containing 'rag', 'stats', or both.
         query_types = classify_query(query)
 
+        # If the query contains recency language ('recently', 'in form', etc.)
+        # and no explicit date was provided, default to the last 30 days.
         if from_date is None and RECENCY_PATTERN.search(query):
             from_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
+        # Stats path — use LLM tool calling to select and execute the right
+        # SQL function(s), returning a formatted context string.
         stats_context = ""
         if "stats" in query_types:
             stats_context = fetch_stats_context(query, since_date=from_date)
 
+        # RAG path — embed the query and retrieve the most relevant match report
+        # chunks from Pinecone. Drop the result entirely if all scores are below
+        # the 0.55 confidence threshold to avoid low-quality context.
         chunks = []
         used_fallback = False
         if "rag" in query_types:
@@ -386,7 +427,10 @@ def stream_ask(query, from_date=None, gender=None):
                 chunks = []
 
         retrieval_scores = [round(c["score"], 4) for c in chunks]
-        yield from stream_generate(query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores)
+
+        # Stream the answer back token by token as SSE events, passing the
+        # original query so it displays correctly in the frontend.
+        yield from stream_generate(original_query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores)
 
     except Exception as e:
         import traceback
