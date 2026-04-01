@@ -258,7 +258,7 @@ def _build_user_message(query, chunks, stats_context, used_fallback):
 # in real time, holds back chars around <<<META>>> to avoid splitting it mid-stream,
 # then parses the trailing metadata JSON and emits a final done event.
 
-STREAM_SYSTEM_PROMPT = """
+ANSWER_SYSTEM_PROMPT = """
 You are an expert football tactics analyst with deep knowledge of the game.
 You answer questions about tactics, team setups, player form and fantasy football.
 
@@ -316,7 +316,7 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
     response = openai_client.chat.completions.create(
         model=LLM_MODEL,
         messages=[
-            {"role": "system", "content": STREAM_SYSTEM_PROMPT},
+            {"role": "system", "content": ANSWER_SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
         stream=True,
