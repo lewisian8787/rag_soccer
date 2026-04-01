@@ -53,7 +53,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-800 bg-red-950 px-7 py-5 text-sm text-red-300">
+      <div role="alert" className="rounded-2xl border border-red-800 bg-red-950 px-7 py-5 text-sm text-red-300">
         {error}
       </div>
     )
@@ -62,8 +62,8 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
   // Soccer ball while waiting for first token
   if (loading && !streamingText && !displayedText) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-7 py-8 flex items-center gap-3">
-        <span className="text-2xl animate-bounce" style={{ animationDuration: '0.8s' }}>⚽</span>
+      <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-zinc-800 bg-zinc-900 px-7 py-8 flex items-center gap-3">
+        <span aria-hidden="true" className="text-2xl motion-safe:animate-bounce" style={{ animationDuration: '0.8s' }}>⚽</span>
         <span className="text-zinc-500 text-sm">Analysing...</span>
       </div>
     )
@@ -72,10 +72,10 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
   // Typewriter in progress — show typed text, cursor while still going
   if (isTyping || (!result && displayedText)) {
     return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-7 py-6">
+      <div aria-live="polite" className="rounded-2xl border border-zinc-800 bg-zinc-900 px-7 py-6">
         <p className="text-zinc-100 leading-relaxed whitespace-pre-wrap">
           {displayedText}
-          {isTyping && <span className="animate-bounce inline-block" style={{ animationDuration: '0.8s' }}> ⚽</span>}
+          {isTyping && <span aria-hidden="true" className="motion-safe:animate-bounce inline-block" style={{ animationDuration: '0.8s' }}> ⚽</span>}
         </p>
       </div>
     )
@@ -87,7 +87,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
   const dotStyle = CONFIDENCE_DOT[result.confidence] ?? CONFIDENCE_DOT.low
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+    <div aria-live="polite" className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden">
 
       <div className="px-7 py-5">
         <p className="text-zinc-100 leading-relaxed whitespace-pre-wrap">{result.answer}</p>

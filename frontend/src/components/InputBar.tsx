@@ -19,7 +19,11 @@ export default function InputBar({ onAsk, loading, mode = 'football' }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-3">
+      <label htmlFor="question-input" className="sr-only">
+        Ask a question
+      </label>
       <input
+        id="question-input"
         type="text"
         value={input}
         onChange={(e) => setInput(e.target.value)}
@@ -30,6 +34,7 @@ export default function InputBar({ onAsk, loading, mode = 'football' }: Props) {
       <button
         type="submit"
         disabled={!input.trim() || loading}
+        aria-label="Submit question"
         className="bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-950 text-sm font-bold px-6 py-3.5 rounded-xl transition-colors whitespace-nowrap"
       >
         Kick Off

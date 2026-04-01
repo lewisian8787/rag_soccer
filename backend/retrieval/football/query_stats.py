@@ -452,6 +452,37 @@ def get_league_attacking_ranking(since_date: str = None, limit: int = 20) -> lis
             return [dict(r) for r in cur.fetchall()]
 
 
+def get_standings() -> list[dict]:
+    """Full EPL league table computed from stored match results."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    team,
+                    COUNT(*) AS played,
+                    SUM(CASE WHEN goals_for > goals_against THEN 1 ELSE 0 END) AS won,
+                    SUM(CASE WHEN goals_for = goals_against THEN 1 ELSE 0 END) AS drawn,
+                    SUM(CASE WHEN goals_for < goals_against THEN 1 ELSE 0 END) AS lost,
+                    SUM(goals_for) AS gf,
+                    SUM(goals_against) AS ga,
+                    SUM(goals_for - goals_against) AS gd,
+                    SUM(CASE
+                        WHEN goals_for > goals_against THEN 3
+                        WHEN goals_for = goals_against THEN 1
+                        ELSE 0 END) AS pts
+                FROM (
+                    SELECT home_team AS team, home_goals AS goals_for, away_goals AS goals_against
+                    FROM api_matches
+                    UNION ALL
+                    SELECT away_team AS team, away_goals AS goals_for, home_goals AS goals_against
+                    FROM api_matches
+                ) sub
+                GROUP BY team
+                ORDER BY pts DESC, gd DESC, gf DESC
+            """)
+            return [dict(r) for r in cur.fetchall()]
+
+
 def format_stats_context(data: list[dict] | dict | None, label: str) -> str:
     if not data:
         return f"[No {label} data found]"

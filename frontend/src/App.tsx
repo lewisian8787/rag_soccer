@@ -4,6 +4,7 @@ import InputBar from './components/InputBar'
 import AnswerCard from './components/AnswerCard'
 import HistorySidebar from './components/HistorySidebar'
 import type { HistoryEntry } from './components/HistorySidebar'
+import StandingsTable from './components/StandingsTable'
 
 type Mode = 'football' | 'fpl'
 
@@ -74,9 +75,10 @@ function App() {
           <p className="text-zinc-500 text-sm mb-6">Tactics, form, stats and maybe fantasy — powered by match reports</p>
 
           {/* Mode toggle */}
-          <div className="inline-flex rounded-xl border border-zinc-700 overflow-hidden">
+          <div role="group" aria-label="Mode" className="inline-flex rounded-xl border border-zinc-700 overflow-hidden">
             <button
               onClick={() => handleModeChange('football')}
+              aria-pressed={mode === 'football'}
               className={`px-5 py-2 text-sm font-semibold transition-colors ${
                 mode === 'football'
                   ? 'bg-amber-500 text-zinc-950'
@@ -87,6 +89,7 @@ function App() {
             </button>
             <button
               onClick={() => handleModeChange('fpl')}
+              aria-pressed={mode === 'fpl'}
               className={`px-5 py-2 text-sm font-semibold transition-colors flex items-center gap-2 ${
                 mode === 'fpl'
                   ? 'bg-purple-600 text-white'
@@ -155,6 +158,8 @@ function App() {
         )}
         <div className="pb-16" />
       </main>
+
+      <StandingsTable onTeamClick={handleAsk} />
 
     </div>
   )

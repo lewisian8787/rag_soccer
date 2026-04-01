@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 
 import football.football_pipeline as football_pipeline
 import fpl.fpl_pipeline as fpl_pipeline  # noqa: F401 — fpl stub
+from football.query_stats import get_standings
 
 app = FastAPI()
 
@@ -31,6 +32,14 @@ def _get_pipeline(mode: str):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/standings")
+def standings_endpoint():
+    try:
+        return get_standings()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # main and really only route.
