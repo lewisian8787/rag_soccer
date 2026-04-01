@@ -82,11 +82,11 @@ function App() {
         onSelect={setSelectedIndex}
       />
 
-      <main className="flex-1 overflow-y-auto flex flex-col items-center px-4">
-        <header className="mt-6 mb-12 text-center">
-          <div className="flex flex-col items-center mb-6">
-            <img src="/logos/dugout-green.png" alt="The Dugout" className="w-72 h-auto object-contain" />
-            <p className="text-gray-500 text-sm -mt-2">Tactics, form, stats and maybe fantasy — powered by match reports</p>
+      <main className="flex-1 flex flex-col">
+        <header className="mt-10 mb-30 text-center px-4 shrink-0">
+          <div className="flex flex-col items-center mb-3">
+            <img src="/logos/dugout-green.png" alt="The Dugout" className="w-40 h-auto object-contain" />
+            <p className="text-gray-500 text-sm mt-1">Tactics, form, stats and maybe fantasy — powered by match reports</p>
           </div>
 
           {/* Mode toggle */}
@@ -119,8 +119,10 @@ function App() {
           </div>
         </header>
 
-        {hasContent && (
-          <div className="w-full max-w-2xl mb-8 flex flex-col gap-4">
+        {/* Scrollable conversation area */}
+        <div className="flex-1 overflow-y-auto flex flex-col items-center px-4 py-2">
+          {hasContent && (
+            <div className="w-full max-w-2xl mb-4 flex flex-col gap-4">
             {history.map((entry, i) => (
               <div key={i} className="flex flex-col gap-4">
                 <div className="flex justify-end">
@@ -152,44 +154,52 @@ function App() {
               </div>
             )}
             <div ref={bottomRef} />
-          </div>
-        )}
-
-        <div className="w-full max-w-2xl">
-          {(history.length > 0) && !loading && (
-            <p className="text-xs text-gray-500 text-center mb-3 tracking-wide uppercase">
-              Ask another question
-            </p>
+            </div>
           )}
-          <InputBar onAsk={handleAsk} loading={loading} mode={mode} />
+
+          {!hasContent && (
+            <div className="w-full max-w-2xl">
+              <div className="mb-8">
+                <InputBar onAsk={handleAsk} loading={loading} mode={mode} />
+              </div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-4">Try asking</p>
+              <div className="flex flex-wrap gap-2">
+                {EXAMPLE_QUESTIONS[mode].map(({ label, type }) => (
+                  <button
+                    key={label}
+                    onClick={() => handleAsk(label)}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#162b1f] border border-emerald-700/60 hover:border-emerald-400 text-gray-300 hover:text-white text-sm transition-colors shadow-[0_1px_8px_rgba(0,0,0,0.3)]"
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${type === 'stats' ? 'bg-emerald-400' : 'bg-teal-400'}`} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-4 mt-4">
+                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Stats
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400" /> Match reports
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {!hasContent && (
-          <div className="w-full max-w-2xl mt-10">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-4">Try asking</p>
-            <div className="flex flex-wrap gap-2">
-              {EXAMPLE_QUESTIONS[mode].map(({ label, type }) => (
-                <button
-                  key={label}
-                  onClick={() => handleAsk(label)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#162b1f] border border-emerald-700/60 hover:border-emerald-400 text-gray-300 hover:text-white text-sm transition-colors shadow-[0_1px_8px_rgba(0,0,0,0.3)]"
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${type === 'stats' ? 'bg-emerald-400' : 'bg-teal-400'}`} />
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-4 mt-4">
-              <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Stats
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-400" /> Match reports
-              </span>
+        {/* Fixed input bar at bottom — only during conversation */}
+        {hasContent && (
+          <div className="shrink-0 w-full px-4 pb-10 flex flex-col items-center">
+            {(history.length > 0) && !loading && (
+              <p className="text-xs text-gray-500 text-center mb-3 tracking-wide uppercase">
+                Ask another question
+              </p>
+            )}
+            <div className="w-full max-w-2xl">
+              <InputBar onAsk={handleAsk} loading={loading} mode={mode} />
             </div>
           </div>
         )}
-        <div className="pb-16" />
       </main>
 
       <StandingsTable onTeamClick={handleAsk} />

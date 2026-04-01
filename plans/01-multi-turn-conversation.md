@@ -2,7 +2,8 @@
 
 ## Context
 
-The app is currently stateless — every question is independent, with no memory of prior turns. This prevents natural follow-up questions ("What about his assists?" has no referent). We need to:
+The app is currently stateless — every question is independent, with no memory of prior turns. 
+
 1. Pass conversation history to the backend on each request
 2. Use that history in two pipeline stages: query rewriting (pronoun resolution) and final answer generation
 3. Apply a sliding-window eviction policy to keep context bounded
@@ -11,7 +12,7 @@ The app is currently stateless — every question is independent, with no memory
 
 ## Architecture Decision: Client-Side History
 
-History lives in React state and is sent with every request. No database, no session IDs, no server-side state. Rationale: this is a class project; football Q&A sessions are short and topically focused; oldest turns are the least relevant anyway.
+History lives in React state and is sent with every request. No database, no session IDs, no server-side state. Rationale: football Q&A sessions are short and topically focused; oldest turns are the least relevant anyway.
 
 **Context evacuation strategy: Sliding Window (cap = 10 turns = 20 messages)**
 - When the window fills, drop the oldest user+assistant pair before sending
