@@ -29,13 +29,13 @@ export default function InputBar({ onAsk, loading, mode = 'football' }: Props) {
         onChange={(e) => setInput(e.target.value)}
         placeholder={mode === 'fpl' ? 'e.g. Who should I captain this week?' : 'e.g. Who has been clinical up front recently?'}
         autoFocus
-        className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-5 py-3.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
+        className="flex-1 bg-[#0f2015] border border-[#2a5438] rounded-xl px-5 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-400 transition-colors"
       />
       <button
         type="submit"
         disabled={!input.trim() || loading}
         aria-label="Submit question"
-        className="bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-950 text-sm font-bold px-6 py-3.5 rounded-xl transition-colors whitespace-nowrap"
+        className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-950 text-sm font-bold px-6 py-3.5 rounded-xl transition-colors whitespace-nowrap"
       >
         Kick Off
       </button>

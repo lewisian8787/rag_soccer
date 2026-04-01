@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+.pitch-bg {
+  background-color: #0a1a0e;
+  background-image: url('/pitch-lines.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}

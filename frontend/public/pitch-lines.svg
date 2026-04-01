@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" preserveAspectRatio="xMidYMid meet">
+  <g opacity="0.06" fill="none" stroke="white" stroke-width="2">
+    <!-- Outer boundary -->
+    <rect x="60" y="40" width="1080" height="700"/>
+    <!-- Halfway line -->
+    <line x1="600" y1="40" x2="600" y2="740"/>
+    <!-- Centre circle (r=91 = ~9.15m at standard scale) -->
+    <circle cx="600" cy="390" r="100"/>
+    <!-- Centre spot -->
+    <circle cx="600" cy="390" r="4" fill="white" stroke="none"/>
+    <!-- Left penalty area -->
+    <rect x="60" y="235" width="180" height="310"/>
+    <!-- Left 6-yard box -->
+    <rect x="60" y="330" width="60" height="120"/>
+    <!-- Left penalty spot -->
+    <circle cx="172" cy="390" r="3" fill="white" stroke="none"/>
+    <!-- Left penalty arc (only portion outside penalty area) -->
+    <path d="M 240 319 A 100 100 0 0 1 240 461" stroke-dasharray="0"/>
+    <!-- Right penalty area -->
+    <rect x="960" y="235" width="180" height="310"/>
+    <!-- Right 6-yard box -->
+    <rect x="1080" y="330" width="60" height="120"/>
+    <!-- Right penalty spot -->
+    <circle cx="1028" cy="390" r="3" fill="white" stroke="none"/>
+    <!-- Right penalty arc -->
+    <path d="M 960 319 A 100 100 0 0 0 960 461"/>
+    <!-- Left goal -->
+    <rect x="20" y="350" width="40" height="80"/>
+    <!-- Right goal -->
+    <rect x="1140" y="350" width="40" height="80"/>
+    <!-- Corner arcs -->
+    <path d="M 60 55 A 15 15 0 0 1 75 40"/>
+    <path d="M 1125 40 A 15 15 0 0 1 1140 55"/>
+    <path d="M 60 725 A 15 15 0 0 0 75 740"/>
+    <path d="M 1125 740 A 15 15 0 0 0 1140 725"/>
+  </g>
+</svg>

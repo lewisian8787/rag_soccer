@@ -8,7 +8,7 @@ interface Props {
   error: string | null
 }
 
-const CHAR_DELAY_MS = 28 // ms per character — raise to slow down, lower to speed up
+const CHAR_DELAY_MS = 28
 
 const CONFIDENCE_STYLES = {
   high: 'text-emerald-400 border-emerald-700 bg-emerald-950',
@@ -23,18 +23,15 @@ const CONFIDENCE_DOT = {
 }
 
 export default function AnswerCard({ result, streamingText, loading, error }: Props) {
-  // targetRef holds the latest full text received — even after streamingText clears on `done`
   const targetRef = useRef('')
   const [displayedText, setDisplayedText] = useState('')
 
   const isTyping = displayedText.length < targetRef.current.length
 
-  // Update target as new tokens arrive
   useEffect(() => {
     if (streamingText) targetRef.current = streamingText
   }, [streamingText])
 
-  // Reset when a new question is asked (loading starts, no text yet)
   useEffect(() => {
     if (loading && !streamingText) {
       targetRef.current = ''
@@ -42,14 +39,13 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     }
   }, [loading, streamingText])
 
-  // Typewriter: advance one character at a time
   useEffect(() => {
     if (displayedText.length >= targetRef.current.length) return
     const timer = setTimeout(() => {
       setDisplayedText(targetRef.current.slice(0, displayedText.length + 1))
     }, CHAR_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [displayedText, streamingText]) // streamingText dep re-triggers when target grows
+  }, [displayedText, streamingText])
 
   if (error) {
     return (
@@ -59,21 +55,19 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     )
   }
 
-  // Soccer ball while waiting for first token
   if (loading && !streamingText && !displayedText) {
     return (
-      <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-zinc-800 bg-zinc-900 px-7 py-8 flex items-center gap-3">
+      <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-[#2a5438] bg-[#0f2015] px-7 py-8 flex items-center gap-3">
         <span aria-hidden="true" className="text-2xl motion-safe:animate-bounce" style={{ animationDuration: '0.8s' }}>⚽</span>
-        <span className="text-zinc-500 text-sm">Analysing...</span>
+        <span className="text-gray-400 text-sm">Analysing...</span>
       </div>
     )
   }
 
-  // Typewriter in progress — show typed text, cursor while still going
   if (isTyping || (!result && displayedText)) {
     return (
-      <div aria-live="polite" className="rounded-2xl border border-zinc-800 bg-zinc-900 px-7 py-6">
-        <p className="text-zinc-100 leading-relaxed whitespace-pre-wrap">
+      <div aria-live="polite" className="rounded-2xl border border-[#2a5438] bg-[#0f2015] px-7 py-6">
+        <p className="text-white leading-relaxed whitespace-pre-wrap">
           {displayedText}
           {isTyping && <span aria-hidden="true" className="motion-safe:animate-bounce inline-block" style={{ animationDuration: '0.8s' }}> ⚽</span>}
         </p>
@@ -87,25 +81,21 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
   const dotStyle = CONFIDENCE_DOT[result.confidence] ?? CONFIDENCE_DOT.low
 
   return (
-    <div aria-live="polite" className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-
+    <div aria-live="polite" className="rounded-2xl border border-[#2a5438] bg-[#0f2015] overflow-hidden">
       <div className="px-7 py-5">
-        <p className="text-zinc-100 leading-relaxed whitespace-pre-wrap">{result.answer}</p>
+        <p className="text-white leading-relaxed whitespace-pre-wrap">{result.answer}</p>
       </div>
-
       <div className="px-7 pb-5 flex flex-col gap-3">
         <span className={`inline-flex items-center gap-1.5 text-xs font-semibold w-fit px-3 py-1 rounded-full border ${confStyle}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${dotStyle}`} />
           {result.confidence} confidence
         </span>
-
         {result.caveat && (
           <p className="text-xs text-amber-400 leading-relaxed border-l-2 border-amber-600 pl-3">
             {result.caveat}
           </p>
         )}
       </div>
-
     </div>
   )
 }

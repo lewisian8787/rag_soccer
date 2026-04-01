@@ -58,7 +58,7 @@ function App() {
   const hasContent = displayResult || loading || !!streamingText || !!error
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-950 text-zinc-100">
+    <div className="flex h-screen overflow-hidden pitch-bg text-white">
 
       <HistorySidebar
         history={history}
@@ -67,22 +67,21 @@ function App() {
       />
 
       <main className="flex-1 overflow-y-auto flex flex-col items-center px-4">
-        <header className="mt-16 mb-12 text-center">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <span className="text-3xl">⚽</span>
-            <h1 className="text-4xl font-black tracking-tight text-white">Football Form Guide</h1>
+        <header className="mt-6 mb-12 text-center">
+          <div className="flex items-center justify-center mb-2">
+            <img src="/logos/dugout-green.png" alt="The Dugout" className="w-72 h-auto object-contain" />
           </div>
-          <p className="text-zinc-500 text-sm mb-6">Tactics, form, stats and maybe fantasy — powered by match reports</p>
+          <p className="text-gray-500 text-sm mb-6">Tactics, form, stats and maybe fantasy — powered by match reports</p>
 
           {/* Mode toggle */}
-          <div role="group" aria-label="Mode" className="inline-flex rounded-xl border border-zinc-700 overflow-hidden">
+          <div role="group" aria-label="Mode" className="inline-flex rounded-xl border border-[#2a5438] overflow-hidden">
             <button
               onClick={() => handleModeChange('football')}
               aria-pressed={mode === 'football'}
               className={`px-5 py-2 text-sm font-semibold transition-colors ${
                 mode === 'football'
-                  ? 'bg-amber-500 text-zinc-950'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-emerald-500 text-zinc-950'
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
               Football
@@ -93,7 +92,7 @@ function App() {
               className={`px-5 py-2 text-sm font-semibold transition-colors flex items-center gap-2 ${
                 mode === 'fpl'
                   ? 'bg-purple-600 text-white'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
               FPL
@@ -108,7 +107,7 @@ function App() {
           <div className="w-full max-w-2xl mb-8 flex flex-col gap-4">
             {displayQuery && (
               <div className="flex justify-end">
-                <div className="bg-zinc-800 text-zinc-100 text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%]">
+                <div className="bg-[#162d1c] border border-[#2a5438] text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%]">
                   {displayQuery}
                 </div>
               </div>
@@ -124,7 +123,7 @@ function App() {
 
         <div className="w-full max-w-2xl">
           {(history.length > 0) && !loading && (
-            <p className="text-xs text-zinc-600 text-center mb-3 tracking-wide uppercase">
+            <p className="text-xs text-gray-500 text-center mb-3 tracking-wide uppercase">
               Ask another question
             </p>
           )}
@@ -133,25 +132,25 @@ function App() {
 
         {!hasContent && (
           <div className="w-full max-w-2xl mt-10">
-            <p className="text-xs text-zinc-600 uppercase tracking-wide mb-4">Try asking</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-4">Try asking</p>
             <div className="flex flex-wrap gap-2">
               {EXAMPLE_QUESTIONS[mode].map(({ label, type }) => (
                 <button
                   key={label}
                   onClick={() => handleAsk(label)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-600 text-zinc-400 hover:text-zinc-200 text-sm transition-colors"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#0f2015] border border-[#2a5438] hover:border-emerald-400 text-gray-300 hover:text-white text-sm transition-colors"
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${type === 'stats' ? 'bg-amber-500' : 'bg-sky-500'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${type === 'stats' ? 'bg-emerald-400' : 'bg-teal-400'}`} />
                   {label}
                 </button>
               ))}
             </div>
             <div className="flex items-center gap-4 mt-4">
-              <span className="flex items-center gap-1.5 text-xs text-zinc-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Stats
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Stats
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-zinc-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500" /> Match reports
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-400" /> Match reports
               </span>
             </div>
           </div>
