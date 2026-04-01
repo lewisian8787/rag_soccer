@@ -122,11 +122,28 @@ def classify_query(query: str) -> set[str]:
             {"role": "system", "content": CLASSIFIER_PROMPT},
             {"role": "user", "content": query},
         ],
-        response_format={"type": "json_object"},
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "query_classification",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "types": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": ["rag", "stats"]}
+                        }
+                    },
+                    "required": ["types"],
+                    "additionalProperties": False
+                }
+            }
+        },
         temperature=0,
     )
     data = json.loads(response.choices[0].message.content)
-    return set(data.get("types", ["rag"]))
+    return set(data["types"])
 
 
 # --- Stats fetch via LLM tool calling ---

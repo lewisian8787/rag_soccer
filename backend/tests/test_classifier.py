@@ -170,11 +170,13 @@ class TestClassifyQueryMocked:
         call_kwargs = mock_openai.chat.completions.create.call_args.kwargs
         assert call_kwargs["model"] == "gpt-4o-mini"
 
-    def test_uses_json_response_format(self, mock_openai):
+    def test_uses_structured_output_schema(self, mock_openai):
         self._setup_mock_response(mock_openai, ["rag"])
         classify_query("test")
         call_kwargs = mock_openai.chat.completions.create.call_args.kwargs
-        assert call_kwargs["response_format"] == {"type": "json_object"}
+        assert call_kwargs["response_format"]["type"] == "json_schema"
+        assert call_kwargs["response_format"]["json_schema"]["strict"] is True
+        assert call_kwargs["response_format"]["json_schema"]["name"] == "query_classification"
 
 
 # --- Live Integration Tests ---
