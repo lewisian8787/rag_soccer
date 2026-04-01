@@ -14,16 +14,26 @@ openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 index = pc.Index(os.getenv("PINECONE_INDEX_NAME"))
 
-TARGET_TOKENS = 150
 OVERLAP_SENTENCES = 1
 EMBEDDING_MODEL = "text-embedding-3-small"
 
+# Token targets vary by article type — match reports are dense and factual so
+# small chunks work well; long-form content needs more context per chunk.
+TARGET_TOKENS_BY_TYPE = {
+    "matchreports": 150,
+    "analysis":     300,
+    "features":     300,
+    "profiles":     300,
+    "interview":    300,  # fallback only; interviews use chunk_qa() instead
+}
+DEFAULT_TARGET_TOKENS = 150
 
-# --- Chunking ---
-# Splits a match report body into overlapping chunks of roughly TARGET_TOKENS size.
-# Paragraphs are merged if small, split at sentence boundaries if too large.
-# Overlap carries the last sentence of the previous chunk into the next one
-# to avoid losing context at chunk boundaries.
+# A paragraph is considered a question if it is short and ends with "?".
+# Used by is_qa_format() and chunk_qa().
+QA_QUESTION_MAX_TOKENS = 40
+
+
+# --- Chunking helpers ---
 
 def estimate_tokens(text):
     return len(text) // 4
@@ -33,23 +43,93 @@ def split_sentences(text):
     return re.split(r'(?<=[.!?])\s+', text.strip())
 
 
-def chunk_report(body):
+def _is_question_para(para):
+    """Returns True if a paragraph looks like an interview question."""
+    return para.strip().endswith("?") and estimate_tokens(para) < QA_QUESTION_MAX_TOKENS
+
+
+def is_qa_format(body):
+    """
+    Returns True if the article body looks like a Q&A interview.
+    Heuristic: at least 30% of paragraphs are short and end with '?'.
+    """
+    paragraphs = [p.strip() for p in body.split("\n\n") if p.strip()]
+    if len(paragraphs) < 4:
+        return False
+    question_count = sum(1 for p in paragraphs if _is_question_para(p))
+    return (question_count / len(paragraphs)) >= 0.30
+
+
+# --- Q&A chunker ---
+# Groups paragraphs into question+answer exchanges, each becoming one chunk.
+# If an answer is very long it is split at paragraph boundaries, with the
+# question prepended to each continuation chunk so it remains meaningful
+# in isolation.
+
+QA_MAX_TOKENS = 400
+
+
+def chunk_qa(body):
+    paragraphs = [p.strip() for p in body.split("\n\n") if p.strip()]
+    chunks = []
+    current_question = ""
+    current_answer_paras = []
+
+    def flush(question, answer_paras):
+        if not answer_paras:
+            return
+        answer = " ".join(answer_paras)
+        if estimate_tokens((question + " " + answer).strip()) <= QA_MAX_TOKENS:
+            chunks.append((question + " " + answer).strip())
+        else:
+            # Answer is too long — split at paragraph boundaries, prepend question each time
+            buffer = ""
+            for para in answer_paras:
+                candidate = (buffer + " " + para).strip()
+                if estimate_tokens(candidate) <= QA_MAX_TOKENS:
+                    buffer = candidate
+                else:
+                    if buffer:
+                        chunks.append((question + " " + buffer).strip())
+                    buffer = para
+            if buffer:
+                chunks.append((question + " " + buffer).strip())
+
+    for para in paragraphs:
+        if _is_question_para(para):
+            flush(current_question, current_answer_paras)
+            current_question = para
+            current_answer_paras = []
+        else:
+            current_answer_paras.append(para)
+
+    flush(current_question, current_answer_paras)
+    return chunks
+
+
+# --- Standard prose chunker ---
+# Splits a body into overlapping chunks of roughly target_tokens size.
+# Paragraphs are merged if small, split at sentence boundaries if too large.
+# Overlap carries the last sentence of the previous chunk into the next one
+# to avoid losing context at chunk boundaries.
+
+def chunk_report(body, target_tokens=DEFAULT_TARGET_TOKENS):
     paragraphs = [p.strip() for p in body.split("\n\n") if p.strip()]
 
     normalized = []
     buffer = ""
 
     for para in paragraphs:
-        if estimate_tokens(buffer + " " + para) < TARGET_TOKENS:
+        if estimate_tokens(buffer + " " + para) < target_tokens:
             buffer = (buffer + " " + para).strip()
         else:
             if buffer:
                 normalized.append(buffer)
-            if estimate_tokens(para) > TARGET_TOKENS:
+            if estimate_tokens(para) > target_tokens:
                 sentences = split_sentences(para)
                 current = ""
                 for sentence in sentences:
-                    if estimate_tokens(current + " " + sentence) < TARGET_TOKENS:
+                    if estimate_tokens(current + " " + sentence) < target_tokens:
                         current = (current + " " + sentence).strip()
                     else:
                         if current:
@@ -73,6 +153,16 @@ def chunk_report(body):
             chunks.append(overlap + " " + chunk)
 
     return chunks
+
+
+# --- Chunker dispatcher ---
+# Routes to the appropriate chunker based on article type.
+
+def chunk_article(body, article_type):
+    if article_type == "interview" and is_qa_format(body):
+        return chunk_qa(body)
+    target_tokens = TARGET_TOKENS_BY_TYPE.get(article_type, DEFAULT_TARGET_TOKENS)
+    return chunk_report(body, target_tokens=target_tokens)
 
 
 # --- Gender detection ---
@@ -111,15 +201,13 @@ def embed_all(batch_size=7523):
     conn = psycopg2.connect(DB_CONN)
     cur = conn.cursor()
 
-    # including logic to exclude live blogs
     cur.execute("""
-        SELECT mr.id, mr.title, mr.published_at, mrb.body
+        SELECT mr.id, mr.title, mr.published_at, mrb.body, mr.article_type
         FROM match_report_bodies mrb
         JOIN match_reports mr ON mr.id = mrb.match_report_id
-        WHERE mr.published_at >= '2016-01-01'
-        -- Exclude live blogs — these are minute-by-minute match logs, not match reports.
-        -- They produce very poor chunks (e.g. "45+2: Yellow card for Soucek") that
-        -- are useless for tactical or player form queries.
+        WHERE mr.published_at >= '2022-08-01'
+        -- Exclude live blogs as a safety net — these are also filtered at ingestion
+        -- time in fetch_reports.py, but any that slipped through are caught here.
         AND mr.title NOT ILIKE '%%as it happened%%'
         AND mr.title NOT ILIKE '%%– live%%'
         AND mr.title NOT ILIKE '%%- live%%'
@@ -133,9 +221,9 @@ def embed_all(batch_size=7523):
     print(f"Reports to process: {len(rows)}")
     failed = []
 
-    for report_id, title, published_at, body in rows:
+    for report_id, title, published_at, body, article_type in rows:
         try:
-            chunks = chunk_report(body)
+            chunks = chunk_article(body, article_type or "matchreports")
             gender = detect_gender(title)
             vectors = []
 
@@ -152,6 +240,7 @@ def embed_all(batch_size=7523):
                         # stored as Unix timestamp (int) so Pinecone can filter with $gte
                         "published_at": int(published_at.replace(tzinfo=timezone.utc).timestamp()),
                         "gender": gender,
+                        "article_type": article_type or "matchreports",
                     }
                 })
 

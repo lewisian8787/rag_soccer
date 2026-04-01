@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS match_reports (
     title           TEXT,
     url             TEXT UNIQUE,
     published_at    TIMESTAMPTZ,
-    source          TEXT
+    source          TEXT,
+    article_type    VARCHAR DEFAULT 'matchreports'
 );
 
 CREATE TABLE IF NOT EXISTS match_report_bodies (
