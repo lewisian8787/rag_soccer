@@ -22,73 +22,8 @@ TOP_K = 20  # fetch more to compensate for deduplication
 MIN_SCORE = 0.45
 
 
-# --- System prompt ---
-
-# stream = true on request to Open AI generates token by token
-
-STREAM_SYSTEM_PROMPT = """
-You are an expert football tactics analyst with deep knowledge of the game.
-You answer questions about tactics, team setups, player form and fantasy football.
-
-You are given two types of context:
-1. MATCH REPORT EXCERPTS — narrative descriptions from match reports
-2. STRUCTURED STATS — factual data from a stats database (goals, assists, ratings etc.)
-
-Use both sources where available. Structured stats take priority for factual claims.
-Match reports provide tactical and narrative context.
-
-Guidelines:
-- Base your answer only on the provided context — do not use outside knowledge
-- If the context doesn't contain enough information, say so
-- Keep answers focused and analytical — avoid vague generalities
-- Be concise — state the fact directly, do not explain how it was calculated or restate the question
-- Only include stats relevant to the question — if goals are asked for, show goals only; if no specific stat is requested, include the key stats for that category
-- For questions about a specific match (result, scorers, what happened), write the answer as a brief match report in plain prose — 3 to 4 sentences covering the result, who scored, and any notable context. Do not use a list format for this
-- For ALL other list-based answers, format each item on its own line (use newlines, not commas or semicolons). Add one short sentence before or after the list as context — no further commentary
-- If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge
-- Stick to a particular season if it is specified
-- For tactical questions, only respond with information across a reasonable time frame
-- Avoid pointless statements or repeating yourself
-- If you are presenting a list, number each entry
-- Don't ever use the phrase, based on the context available, or something similar as it is implied
-
-Output your response in EXACTLY this format — answer text first, then the delimiter, then metadata JSON:
-
-[Your answer here as plain prose]
-<<<META>>>
-{"confidence": "high|medium|low", "sources": [{"title": "...", "published_at": "YYYY-MM-DD"}], "caveat": "..." or null}
-
-Rules for the metadata:
-- sources should only include match reports you actually drew from
-- caveat should be null if there are no limitations worth flagging
-"""
-
-# --- Query classification ---
-# Uses gpt-4o-mini to decide whether the query needs structured stats, RAG, or both.
-
-CLASSIFIER_PROMPT = """You are a query router for a football analytics chatbot.
-
-Classify the user's question into one or more of these categories:
-- "rag"   — needs match report narrative (tactics, team shape, player form descriptions, atmosphere)
-- "stats" — needs structured data (goals, assists, cards, ratings, results, leaderboards)
-
-Rules:
-- Pure tactical questions (e.g. "How does Arsenal press?", "How do Liverpool defend set pieces?") → rag only
-- Pure stat lookups (e.g. "How many goals has Salah scored?", "What was the score?") → stats only
-- Player form questions (e.g. "How has Salah been playing?", "Is Saka in form?") → always both — narrative context AND stats are needed
-- Fantasy questions (e.g. "Is X worth picking?", "Who should I start?") → always both
-- Subjective quality questions about players (e.g. "Who has been clinical?", "Who has been creative?") → always both — stats confirm it, reports explain it
-- Any question asking about a specific positional role (e.g. "best right winger", "best center mid", "best number 10", "best false 9", "best box-to-box", "best defensive mid", "best left back") → rag only — structured data only stores four broad positions (GK/DEF/MID/FWD) and cannot distinguish specific roles within them
-- Match recap questions (e.g. "What happened in the last X game?", "How did X get on?", "What was the result when X played Y?") → always both — stats for the actual result, RAG for the narrative context
-- Any references to 'recent' or 'as of late' or anything that implies recent, only utilize sources from the last month
-
-When in doubt, return both.
-
-Respond with valid JSON only, no explanation:
-{"types": ["rag", "stats"]}
-"""
-
-# CLASSIFYING CALL TO NORMALIZE ANY ABBREVIATIONS OR NICKNAMES
+# --- Step 1: Query normalisation ---
+# Expands abbreviations and nicknames to full proper names before anything else touches the query.
 
 def rewrite_query(query: str) -> str:
     response = openai_client.chat.completions.create(
@@ -114,7 +49,33 @@ def rewrite_query(query: str) -> str:
     )
     return response.choices[0].message.content.strip()
 
-# CLASSIFYING CALL TO OPENAI, DETERMINING IF STATS/RAG/RAG&STATS PIPELINE
+
+# --- Step 2: Query classification ---
+# Uses gpt-4o-mini to decide whether the query needs structured stats, RAG, or both.
+# Structured output enforces the response matches the schema exactly.
+
+CLASSIFIER_PROMPT = """You are a query router for a football analytics chatbot.
+
+Classify the user's question into one or more of these categories:
+- "rag"   — needs match report narrative (tactics, team shape, player form descriptions, atmosphere)
+- "stats" — needs structured data (goals, assists, cards, ratings, results, leaderboards)
+
+Rules:
+- Pure tactical questions (e.g. "How does Arsenal press?", "How do Liverpool defend set pieces?") → rag only
+- Pure stat lookups (e.g. "How many goals has Salah scored?", "What was the score?") → stats only
+- Player form questions (e.g. "How has Salah been playing?", "Is Saka in form?") → always both — narrative context AND stats are needed
+- Fantasy questions (e.g. "Is X worth picking?", "Who should I start?") → always both
+- Subjective quality questions about players (e.g. "Who has been clinical?", "Who has been creative?") → always both — stats confirm it, reports explain it
+- Any question asking about a specific positional role (e.g. "best right winger", "best center mid", "best number 10", "best false 9", "best box-to-box", "best defensive mid", "best left back") → rag only — structured data only stores four broad positions (GK/DEF/MID/FWD) and cannot distinguish specific roles within them
+- Match recap questions (e.g. "What happened in the last X game?", "How did X get on?", "What was the result when X played Y?") → always both — stats for the actual result, RAG for the narrative context
+- Any references to 'recent' or 'as of late' or anything that implies recent, only utilize sources from the last month
+
+When in doubt, return both.
+
+Respond with valid JSON only, no explanation:
+{"types": ["rag", "stats"]}
+"""
+
 def classify_query(query: str) -> set[str]:
     response = openai_client.chat.completions.create(
         model=CLASSIFIER_MODEL,
@@ -122,6 +83,7 @@ def classify_query(query: str) -> set[str]:
             {"role": "system", "content": CLASSIFIER_PROMPT},
             {"role": "user", "content": query},
         ],
+        # structured output ensuring response matches the schema
         response_format={
             "type": "json_schema",
             "json_schema": {
@@ -146,7 +108,7 @@ def classify_query(query: str) -> set[str]:
     return set(data["types"])
 
 
-# --- Stats fetch via LLM tool calling ---
+# --- Step 3a: Stats branch ---
 # Sends the query to gpt-4o-mini with the tool definitions as the menu.
 # The model selects the right function and extracts parameters.
 # We then execute the function and return formatted context.
@@ -202,7 +164,12 @@ def fetch_stats_context(query: str, since_date: str = None) -> str:
     return "\n\n".join(parts)
 
 
-# --- Retrieve relevant chunks from Pinecone ---
+# --- Step 3b: RAG branch ---
+# Embeds the query and retrieves the most relevant match report chunks from Pinecone.
+# Tries the current season first, falls back to the previous season if empty.
+
+CURRENT_SEASON_DATE = "2025-08-01"   # start of 2025/26 season
+FALLBACK_SEASON_DATE = "2024-08-01"  # start of 2024/25 season — fallback if current season empty
 
 def get_embedding(text):
     response = openai_client.embeddings.create(
@@ -212,15 +179,10 @@ def get_embedding(text):
     return response.data[0].embedding
 
 
-CURRENT_SEASON_DATE = "2025-08-01"   # start of 2025/26 season
-FALLBACK_SEASON_DATE = "2024-08-01"  # start of 2024/25 season — fallback if current season empty
-
-# returns chunks from vector db
 def retrieve(query, from_date=None, gender=None):
-    # text string query from the user gets embedded. Return 1536 dimension vector
+    # text string query from the user gets embedded — returns a 1536 dimension vector
     embedding = get_embedding(query)
 
-    # function to call to the vector db
     def _query_pinecone(cutoff_date):
         pinecone_filter = {}
         if cutoff_date:
@@ -260,7 +222,8 @@ def retrieve(query, from_date=None, gender=None):
     return chunks, bool(chunks)
 
 
-# --- Build context string from retrieved chunks ---
+# --- Step 4: Assemble context for the final LLM call ---
+# Formats retrieved chunks and stats into a structured message block.
 
 def build_context(chunks):
     context_parts = []
@@ -272,49 +235,6 @@ def build_context(chunks):
         context_parts.append(f"[{title} | {published_at}]\n{chunk_text}")
     return "\n\n---\n\n".join(context_parts)
 
-
-# --- Main query function ---
-
-RECENCY_PATTERN = re.compile(
-    r"\b("
-    # Recency adverbs
-    r"recently|lately|of late|as of late|nowadays|these days|"
-    r"right now|at the moment|currently|presently|"
-    # Form/momentum language
-    r"in form|in good form|on form|on fire|hot streak|flying|"
-    r"sharp|clinical|looking good|looking sharp|back to his best|"
-    r"hit the ground running"
-    r")\b",
-    re.IGNORECASE
-)
-
-
-def ask(query, from_date=None, gender=None):
-    """Non-streaming entry point — collects run_pipeline output into a dict. Used by tests and CLI."""
-    answer_parts = []
-    meta = {}
-    for raw in run_pipeline(query, from_date=from_date, gender=gender):
-        if not raw.startswith("data: "):
-            continue
-        event = json.loads(raw[6:])
-        if event["type"] == "token":
-            answer_parts.append(event["text"])
-        elif event["type"] == "done":
-            meta = event
-    return {
-        "answer": "".join(answer_parts),
-        "confidence": meta.get("confidence", "low"),
-        "sources": meta.get("sources", []),
-        "caveat": meta.get("caveat"),
-        "query": query,
-        "query_types": meta.get("query_types", []),
-        "retrieval_scores": [],
-    }
-
-
-# --- Streaming system prompt ---
-# Instructs the model to output answer text, then a delimiter, then compact metadata JSON.
-# This lets us stream the answer tokens and parse metadata cleanly at the end.
 
 def _build_user_message(query, chunks, stats_context, used_fallback):
     rag_context = build_context(chunks)
@@ -333,11 +253,48 @@ def _build_user_message(query, chunks, stats_context, used_fallback):
     return f"{context_block}{fallback_note}\n\nQuestion: {query}"
 
 
-# --- Final synthesis and streaming layer ---
-# Receives the assembled context (RAG chunks + stats) from run_pipeline, makes the
-# single answer-generating LLM call with stream=True, and yields SSE token events
-# in real time. Holds back chars around the <<<META>>> delimiter to avoid splitting
-# it mid-stream, then parses the trailing metadata JSON and emits a final done event.
+# --- Step 5: Final synthesis and streaming ---
+# Makes the single answer-generating LLM call (gpt-4o, stream=True), yields SSE token events
+# in real time, holds back chars around <<<META>>> to avoid splitting it mid-stream,
+# then parses the trailing metadata JSON and emits a final done event.
+
+STREAM_SYSTEM_PROMPT = """
+You are an expert football tactics analyst with deep knowledge of the game.
+You answer questions about tactics, team setups, player form and fantasy football.
+
+You are given two types of context:
+1. MATCH REPORT EXCERPTS — narrative descriptions from match reports
+2. STRUCTURED STATS — factual data from a stats database (goals, assists, ratings etc.)
+
+Use both sources where available. Structured stats take priority for factual claims.
+Match reports provide tactical and narrative context.
+
+Guidelines:
+- Base your answer only on the provided context — do not use outside knowledge
+- If the context doesn't contain enough information, say so
+- Keep answers focused and analytical — avoid vague generalities
+- Be concise — state the fact directly, do not explain how it was calculated or restate the question
+- Only include stats relevant to the question — if goals are asked for, show goals only; if no specific stat is requested, include the key stats for that category
+- For questions about a specific match (result, scorers, what happened), write the answer as a brief match report in plain prose — 3 to 4 sentences covering the result, who scored, and any notable context. Do not use a list format for this
+- For ALL other list-based answers, format each item on its own line (use newlines, not commas or semicolons). Add one short sentence before or after the list as context — no further commentary
+- If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge
+- Stick to a particular season if it is specified
+- For tactical questions, only respond with information across a reasonable time frame
+- Avoid pointless statements or repeating yourself
+- If you are presenting a list, number each entry
+- Don't ever use the phrase, based on the context available, or something similar as it is implied
+
+Output your response in EXACTLY this format — answer text first, then the delimiter, then metadata JSON:
+
+[Your answer here as plain prose]
+<<<META>>>
+{"confidence": "high|medium|low", "sources": [{"title": "...", "published_at": "YYYY-MM-DD"}], "caveat": "..." or null}
+
+Rules for the metadata:
+- sources should only include match reports you actually drew from
+- caveat should be null if there are no limitations worth flagging
+"""
+
 def generate_response(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None):
     """Yields SSE events: token events for each answer chunk, then a done event with metadata."""
     rag_context = build_context(chunks)
@@ -354,7 +311,6 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
         yield f"data: {no_data}\n\n"
         return
 
-    # formulate final message to LLM, including all relevent context now
     user_message = _build_user_message(query, chunks, stats_context, used_fallback)
 
     response = openai_client.chat.completions.create(
@@ -418,17 +374,30 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
 # Normalises the query, classifies it (rag/stats/both), applies recency date logic,
 # fetches stats via LLM tool calling and/or retrieves Pinecone chunks, then delegates
 # to generate_response to make the final LLM synthesis call and stream the answer.
+
+RECENCY_PATTERN = re.compile(
+    r"\b("
+    # Recency adverbs
+    r"recently|lately|of late|as of late|nowadays|these days|"
+    r"right now|at the moment|currently|presently|"
+    # Form/momentum language
+    r"in form|in good form|on form|on fire|hot streak|flying|"
+    r"sharp|clinical|looking good|looking sharp|back to his best|"
+    r"hit the ground running"
+    r")\b",
+    re.IGNORECASE
+)
+
 def run_pipeline(query, from_date=None, gender=None):
     """Pipeline entry point for streaming responses."""
     try:
-        # Preserve the original query so user doesn't see normalized
+        # Preserve the original query so user doesn't see normalized version
         original_query = query
 
-        # Normalise abbreviations and nicknames before anything else touches the
+        # Step 1: Normalise abbreviations and nicknames
         query = rewrite_query(query)
 
-        # Classify the query to determine which pipelines to run.
-        # Returns a set containing 'rag', 'stats', or both.
+        # Step 2: Classify the query — returns a set containing 'rag', 'stats', or both
         query_types = classify_query(query)
 
         # If the query contains recency language ('recently', 'in form', etc.)
@@ -436,15 +405,12 @@ def run_pipeline(query, from_date=None, gender=None):
         if from_date is None and RECENCY_PATTERN.search(query):
             from_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
-        # Stats path — use LLM tool calling to select and execute the right
-        # SQL function(s), returning a formatted context string.
+        # Step 3a: Stats path — LLM tool calling selects and executes the right SQL function(s)
         stats_context = ""
         if "stats" in query_types:
             stats_context = fetch_stats_context(query, since_date=from_date)
 
-        # RAG path — embed the query and retrieve the most relevant match report
-        # chunks from Pinecone. Drop the result entirely if all scores are below
-        # the 0.55 confidence threshold to avoid low-quality context.
+        # Step 3b: RAG path — embed and retrieve Pinecone chunks, discard if all scores too low
         chunks = []
         used_fallback = False
         if "rag" in query_types:
@@ -454,7 +420,7 @@ def run_pipeline(query, from_date=None, gender=None):
 
         retrieval_scores = [round(c["score"], 4) for c in chunks]
 
-        # all data has been collected from tools/calls. Yield to generate_response to generate reponse
+        # Step 4 + 5: Assemble context and stream the answer
         yield from generate_response(original_query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores)
 
     except Exception as e:
@@ -462,6 +428,29 @@ def run_pipeline(query, from_date=None, gender=None):
         traceback.print_exc()
         error_event = json.dumps({"type": "error", "message": str(e)})
         yield f"data: {error_event}\n\n"
+
+
+def ask(query, from_date=None, gender=None):
+    """Non-streaming entry point — collects run_pipeline output into a dict. Used by tests and CLI."""
+    answer_parts = []
+    meta = {}
+    for raw in run_pipeline(query, from_date=from_date, gender=gender):
+        if not raw.startswith("data: "):
+            continue
+        event = json.loads(raw[6:])
+        if event["type"] == "token":
+            answer_parts.append(event["text"])
+        elif event["type"] == "done":
+            meta = event
+    return {
+        "answer": "".join(answer_parts),
+        "confidence": meta.get("confidence", "low"),
+        "sources": meta.get("sources", []),
+        "caveat": meta.get("caveat"),
+        "query": query,
+        "query_types": meta.get("query_types", []),
+        "retrieval_scores": [],
+    }
 
 
 if __name__ == "__main__":
