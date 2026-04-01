@@ -57,7 +57,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
 
   if (loading && !streamingText && !displayedText) {
     return (
-      <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-[#2a5438] bg-[#0f2015] px-7 py-8 flex items-center gap-3">
+      <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-8 flex items-center gap-3">
         <span aria-hidden="true" className="text-2xl motion-safe:animate-bounce" style={{ animationDuration: '0.8s' }}>⚽</span>
         <span className="text-gray-400 text-sm">Analysing...</span>
       </div>
@@ -66,7 +66,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
 
   if (isTyping || (!result && displayedText)) {
     return (
-      <div aria-live="polite" className="rounded-2xl border border-[#2a5438] bg-[#0f2015] px-7 py-6">
+      <div aria-live="polite" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-6">
         <p className="text-white leading-relaxed whitespace-pre-wrap">
           {displayedText}
           {isTyping && <span aria-hidden="true" className="motion-safe:animate-bounce inline-block" style={{ animationDuration: '0.8s' }}> ⚽</span>}
@@ -81,7 +81,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
   const dotStyle = CONFIDENCE_DOT[result.confidence] ?? CONFIDENCE_DOT.low
 
   return (
-    <div aria-live="polite" className="rounded-2xl border border-[#2a5438] bg-[#0f2015] overflow-hidden">
+    <div aria-live="polite" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] overflow-hidden">
       <div className="px-7 py-5">
         <p className="text-white leading-relaxed whitespace-pre-wrap">{result.answer}</p>
       </div>

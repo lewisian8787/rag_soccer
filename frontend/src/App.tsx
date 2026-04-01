@@ -68,10 +68,10 @@ function App() {
 
       <main className="flex-1 overflow-y-auto flex flex-col items-center px-4">
         <header className="mt-6 mb-12 text-center">
-          <div className="flex items-center justify-center mb-2">
+          <div className="flex flex-col items-center mb-6">
             <img src="/logos/dugout-green.png" alt="The Dugout" className="w-72 h-auto object-contain" />
+            <p className="text-gray-500 text-sm -mt-2">Tactics, form, stats and maybe fantasy — powered by match reports</p>
           </div>
-          <p className="text-gray-500 text-sm mb-6">Tactics, form, stats and maybe fantasy — powered by match reports</p>
 
           {/* Mode toggle */}
           <div role="group" aria-label="Mode" className="inline-flex rounded-xl border border-[#2a5438] overflow-hidden">
@@ -107,7 +107,7 @@ function App() {
           <div className="w-full max-w-2xl mb-8 flex flex-col gap-4">
             {displayQuery && (
               <div className="flex justify-end">
-                <div className="bg-[#162d1c] border border-[#2a5438] text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%]">
+                <div className="bg-[#1e3d2a] border border-emerald-700/60 text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
                   {displayQuery}
                 </div>
               </div>
@@ -138,7 +138,7 @@ function App() {
                 <button
                   key={label}
                   onClick={() => handleAsk(label)}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#0f2015] border border-[#2a5438] hover:border-emerald-400 text-gray-300 hover:text-white text-sm transition-colors"
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#162b1f] border border-emerald-700/60 hover:border-emerald-400 text-gray-300 hover:text-white text-sm transition-colors shadow-[0_1px_8px_rgba(0,0,0,0.3)]"
                 >
                   <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${type === 'stats' ? 'bg-emerald-400' : 'bg-teal-400'}`} />
                   {label}
