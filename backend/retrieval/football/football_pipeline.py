@@ -179,7 +179,7 @@ def get_embedding(text):
     return response.data[0].embedding
 
 
-def retrieve(query, from_date=None, gender=None):
+def retrieve_match_report_chunks(query, from_date=None, gender=None):
     # text string query from the user gets embedded — returns a 1536 dimension vector
     embedding = get_embedding(query)
 
@@ -414,7 +414,7 @@ def run_pipeline(query, from_date=None, gender=None):
         chunks = []
         used_fallback = False
         if "rag" in query_types:
-            chunks, used_fallback = retrieve(query, from_date=from_date, gender=gender)
+            chunks, used_fallback = retrieve_match_report_chunks(query, from_date=from_date, gender=gender)
             if chunks and all(c["score"] < 0.50 for c in chunks):
                 chunks = []
 

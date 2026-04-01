@@ -11,7 +11,7 @@ from datetime import datetime
 from football.football_pipeline import (
     ask,
     run_pipeline,
-    retrieve,
+    retrieve_match_report_chunks,
     fetch_stats_context,
     generate_response,
     rewrite_query,
@@ -74,7 +74,7 @@ class TestRewriteQuery:
 
 
 class TestRetrieve:
-    """Tests for the retrieve() function."""
+    """Tests for the retrieve_match_report_chunks() function."""
 
     @pytest.fixture
     def mock_openai(self):
@@ -99,7 +99,7 @@ class TestRetrieve:
             ]
         }
 
-        chunks, used_fallback = retrieve("test query", from_date="2025-01-01")
+        chunks, used_fallback = retrieve_match_report_chunks("test query", from_date="2025-01-01")
 
         assert len(chunks) == 1
         assert chunks[0]["metadata"]["title"] == "Match A"
@@ -113,7 +113,7 @@ class TestRetrieve:
             ]
         }
 
-        chunks, _ = retrieve("test query", from_date="2025-01-01")
+        chunks, _ = retrieve_match_report_chunks("test query", from_date="2025-01-01")
 
         titles = [c["metadata"]["title"] for c in chunks]
         assert titles == ["Same Match", "Different Match"]
@@ -125,7 +125,7 @@ class TestRetrieve:
             {"matches": [{"score": 0.85, "metadata": {"title": "Old Match", "published_at": 1700000000, "chunk_text": "Old"}}]},
         ]
 
-        chunks, used_fallback = retrieve("test query")
+        chunks, used_fallback = retrieve_match_report_chunks("test query")
 
         assert len(chunks) == 1
         assert used_fallback is True
@@ -135,7 +135,7 @@ class TestRetrieve:
             "matches": [{"score": 0.85, "metadata": {"title": "Current Match", "published_at": 1700000000, "chunk_text": "Current"}}]
         }
 
-        chunks, used_fallback = retrieve("test query")
+        chunks, used_fallback = retrieve_match_report_chunks("test query")
 
         assert len(chunks) == 1
         assert used_fallback is False
@@ -143,7 +143,7 @@ class TestRetrieve:
     def test_applies_date_filter(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {"matches": []}
 
-        retrieve("test query", from_date="2025-06-01")
+        retrieve_match_report_chunks("test query", from_date="2025-06-01")
 
         call_kwargs = mock_pinecone.query.call_args.kwargs
         assert "filter" in call_kwargs
@@ -152,7 +152,7 @@ class TestRetrieve:
     def test_applies_gender_filter(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {"matches": []}
 
-        retrieve("test query", from_date="2025-01-01", gender="women")
+        retrieve_match_report_chunks("test query", from_date="2025-01-01", gender="women")
 
         call_kwargs = mock_pinecone.query.call_args.kwargs
         assert call_kwargs["filter"]["gender"] == {"$eq": "women"}

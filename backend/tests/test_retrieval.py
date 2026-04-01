@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import patch, Mock
 from datetime import datetime
 
-from football.football_pipeline import retrieve, get_embedding, MIN_SCORE
+from football.football_pipeline import retrieve_match_report_chunks, get_embedding, MIN_SCORE
 
 
 # --- Test Data ---
@@ -52,7 +52,7 @@ class TestGetEmbedding:
 
 
 class TestRetrieveMocked:
-    """Mocked tests for the retrieve() function."""
+    """Mocked tests for the retrieve_match_report_chunks() function."""
 
     @pytest.fixture
     def mock_openai(self):
@@ -71,7 +71,7 @@ class TestRetrieveMocked:
     def test_queries_pinecone_with_top_k(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {"matches": []}
 
-        retrieve("test query", from_date="2025-01-01")
+        retrieve_match_report_chunks("test query", from_date="2025-01-01")
 
         call_kwargs = mock_pinecone.query.call_args.kwargs
         assert call_kwargs["top_k"] == 20  # TOP_K constant
@@ -80,7 +80,7 @@ class TestRetrieveMocked:
     def test_builds_date_filter_from_string(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {"matches": []}
 
-        retrieve("test query", from_date="2025-06-15")
+        retrieve_match_report_chunks("test query", from_date="2025-06-15")
 
         call_kwargs = mock_pinecone.query.call_args.kwargs
         expected_timestamp = int(datetime(2025, 6, 15).timestamp())
@@ -89,7 +89,7 @@ class TestRetrieveMocked:
     def test_combines_date_and_gender_filters(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {"matches": []}
 
-        retrieve("test query", from_date="2025-01-01", gender="women")
+        retrieve_match_report_chunks("test query", from_date="2025-01-01", gender="women")
 
         call_kwargs = mock_pinecone.query.call_args.kwargs
         assert "published_at" in call_kwargs["filter"]
@@ -104,7 +104,7 @@ class TestRetrieveMocked:
             ]
         }
 
-        chunks, _ = retrieve("test", from_date="2025-01-01")
+        chunks, _ = retrieve_match_report_chunks("test", from_date="2025-01-01")
 
         # Only chunks >= MIN_SCORE should be included
         titles = [c["metadata"]["title"] for c in chunks]
@@ -120,7 +120,7 @@ class TestRetrieveMocked:
             ]
         }
 
-        chunks, _ = retrieve("test", from_date="2025-01-01")
+        chunks, _ = retrieve_match_report_chunks("test", from_date="2025-01-01")
 
         assert len(chunks) == 1
         assert chunks[0]["score"] == 0.90  # Highest score kept
@@ -133,7 +133,7 @@ class TestRetrieveMocked:
             {"matches": [{"score": 0.75, "metadata": {"title": "Last Season", "published_at": 1700000000, "chunk_text": "Old"}}]},
         ]
 
-        chunks, used_fallback = retrieve("test query")
+        chunks, used_fallback = retrieve_match_report_chunks("test query")
 
         assert len(chunks) == 1
         assert used_fallback is True
@@ -142,7 +142,7 @@ class TestRetrieveMocked:
     def test_no_fallback_when_explicit_date_provided(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {"matches": []}
 
-        chunks, used_fallback = retrieve("test query", from_date="2025-01-01")
+        chunks, used_fallback = retrieve_match_report_chunks("test query", from_date="2025-01-01")
 
         assert chunks == []
         assert used_fallback is False
@@ -174,7 +174,7 @@ class TestRetrievalScoreQuality:
             ]
         }
 
-        chunks, _ = retrieve("test", from_date="2025-01-01")
+        chunks, _ = retrieve_match_report_chunks("test", from_date="2025-01-01")
 
         assert len(chunks) == 1
         assert chunks[0]["score"] >= 0.75
@@ -187,7 +187,7 @@ class TestRetrievalScoreQuality:
             ]
         }
 
-        chunks, _ = retrieve("test", from_date="2025-01-01")
+        chunks, _ = retrieve_match_report_chunks("test", from_date="2025-01-01")
 
         assert len(chunks) == 0
 
@@ -201,7 +201,7 @@ class TestRetrievalLive:
     @pytest.mark.parametrize("test_case", RETRIEVAL_TEST_QUERIES)
     def test_retrieval_returns_results(self, test_case):
         """Verify that test queries return at least some results."""
-        chunks, used_fallback = retrieve(test_case["query"], from_date=test_case["from_date"])
+        chunks, used_fallback = retrieve_match_report_chunks(test_case["query"], from_date=test_case["from_date"])
 
         # May be empty if no matching data, but structure should be valid
         assert isinstance(chunks, list)
@@ -209,7 +209,7 @@ class TestRetrievalLive:
 
     def test_tactical_query_finds_relevant_chunks(self):
         """Tactical queries should find match report content."""
-        chunks, _ = retrieve("How does Arsenal press high?")
+        chunks, _ = retrieve_match_report_chunks("How does Arsenal press high?")
 
         if chunks:  # If data exists
             # Check that results have reasonable scores
@@ -219,7 +219,7 @@ class TestRetrievalLive:
     def test_date_filtering_works(self):
         """Queries with date filter should only return recent content."""
         # Query with recent date filter
-        chunks, _ = retrieve("How has Salah been?", from_date="2025-10-01")
+        chunks, _ = retrieve_match_report_chunks("How has Salah been?", from_date="2025-10-01")
 
         if chunks:
             # All results should be from after the filter date
@@ -229,7 +229,7 @@ class TestRetrievalLive:
 
     def test_gender_filtering_works(self):
         """Gender filter should only return matching content."""
-        chunks, _ = retrieve("How did the team play?", from_date="2025-01-01", gender="women")
+        chunks, _ = retrieve_match_report_chunks("How did the team play?", from_date="2025-01-01", gender="women")
 
         if chunks:
             for chunk in chunks:
