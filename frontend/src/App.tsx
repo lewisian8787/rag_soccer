@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useAsk } from './hooks/useAsk'
+import { useState, useRef, useEffect } from 'react'
+import { useAsk, type ConversationTurn } from './hooks/useAsk'
 import InputBar from './components/InputBar'
 import AnswerCard from './components/AnswerCard'
 import HistorySidebar from './components/HistorySidebar'
@@ -7,6 +7,8 @@ import type { HistoryEntry } from './components/HistorySidebar'
 import StandingsTable from './components/StandingsTable'
 
 type Mode = 'football' | 'fpl'
+
+const MAX_HISTORY_TURNS = 10
 
 const EXAMPLE_QUESTIONS: Record<Mode, { label: string; type: 'stats' | 'rag' }[]> = {
   football: [
@@ -32,30 +34,44 @@ function App() {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [currentQuery, setCurrentQuery] = useState('')
+  const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
+  const bottomRef = useRef<HTMLDivElement>(null)
 
-  const { result, streamingText, loading, error, ask } = useAsk((r) => {
+  const { streamingText, loading, error, ask } = useAsk((r) => {
     setHistory(prev => {
       const next = [...prev, { query: r.query, result: r }]
       setSelectedIndex(next.length - 1)
       return next
     })
+
+    setConversationHistory(prev => {
+      const updated = [...prev,
+        { role: 'user' as const, content: r.query },
+        { role: 'assistant' as const, content: r.answer },
+      ]
+      const maxMessages = MAX_HISTORY_TURNS * 2
+      return updated.length > maxMessages ? updated.slice(updated.length - maxMessages) : updated
+    })
   })
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [history, streamingText])
 
   function handleAsk(query: string) {
     setSelectedIndex(null)
     setCurrentQuery(query)
-    ask(query, mode)
+    ask(query, mode, conversationHistory)
   }
 
   function handleModeChange(next: Mode) {
     setMode(next)
     setSelectedIndex(null)
     setHistory([])
+    setConversationHistory([])
   }
 
-  const displayResult = selectedIndex !== null ? history[selectedIndex].result : result
-  const displayQuery = selectedIndex !== null ? history[selectedIndex].result.query : currentQuery
-  const hasContent = displayResult || loading || !!streamingText || !!error
+  const hasContent = history.length > 0 || loading || !!streamingText || !!error
 
   return (
     <div className="flex h-screen overflow-hidden pitch-bg text-white">
@@ -105,19 +121,37 @@ function App() {
 
         {hasContent && (
           <div className="w-full max-w-2xl mb-8 flex flex-col gap-4">
-            {displayQuery && (
-              <div className="flex justify-end">
-                <div className="bg-[#1e3d2a] border border-emerald-700/60 text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
-                  {displayQuery}
+            {history.map((entry, i) => (
+              <div key={i} className="flex flex-col gap-4">
+                <div className="flex justify-end">
+                  <div className="bg-[#1e3d2a] border border-emerald-700/60 text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
+                    {entry.query}
+                  </div>
                 </div>
+                <AnswerCard
+                  result={entry.result}
+                  streamingText=""
+                  loading={false}
+                  error={null}
+                />
+              </div>
+            ))}
+            {(loading || streamingText) && (
+              <div className="flex flex-col gap-4">
+                <div className="flex justify-end">
+                  <div className="bg-[#1e3d2a] border border-emerald-700/60 text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
+                    {currentQuery}
+                  </div>
+                </div>
+                <AnswerCard
+                  result={null}
+                  streamingText={streamingText}
+                  loading={loading}
+                  error={error}
+                />
               </div>
             )}
-            <AnswerCard
-              result={displayResult}
-              streamingText={streamingText}
-              loading={loading}
-              error={error}
-            />
+            <div ref={bottomRef} />
           </div>
         )}
 

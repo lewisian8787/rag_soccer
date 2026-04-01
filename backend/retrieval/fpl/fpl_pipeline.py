@@ -1,7 +1,7 @@
 import json
 
 
-def run_pipeline(query, from_date=None, gender=None):
+def run_pipeline(query, from_date=None, gender=None, history=None):
     """FPL pipeline — stub. No data ingested yet."""
     msg = (
         "FPL mode is coming soon. "
@@ -12,7 +12,7 @@ def run_pipeline(query, from_date=None, gender=None):
     yield f"data: {json.dumps({'type': 'done', 'confidence': 'low', 'sources': [], 'caveat': 'No FPL data has been ingested yet. This feature is in early development.'})}\n\n"
 
 
-def ask(query, from_date=None, gender=None):
+def ask(query, from_date=None, gender=None, history=None):
     return {
         "answer": "FPL mode is coming soon — no data ingested yet.",
         "confidence": "low",

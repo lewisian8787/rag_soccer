@@ -25,25 +25,31 @@ MIN_SCORE = 0.45
 # --- Step 1: Query normalisation ---
 # Expands abbreviations and nicknames to full proper names before anything else touches the query.
 
-def rewrite_query(query: str) -> str:
+def rewrite_query(query: str, history: list[dict] = None) -> str:
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a football query normaliser. "
+                "Expand any abbreviations, nicknames or shorthand in the user's question to full proper names. "
+                "If the question refers to a player, team, or match mentioned in recent conversation history, "
+                "make those references explicit in the rewritten question. "
+                "Examples: 'Wolves' → 'Wolverhampton', 'Spurs' → 'Tottenham', 'Villa' → 'Aston Villa', "
+                "'Man City' → 'Manchester City', 'Man Utd' → 'Manchester United', "
+                "'Forest' → 'Nottingham Forest', 'DCL' → 'Calvert-Lewin', "
+                "'KDB' → 'De Bruyne', 'TAA' → 'Trent Alexander-Arnold'. "
+                "Preserve the original phrasing and intent exactly — do not rephrase, summarise or add information. "
+                "Return only the rewritten question as a plain string, nothing else."
+            )
+        }
+    ]
+    if history:
+        messages.extend(history[-2:])
+    messages.append({"role": "user", "content": query})
+
     response = openai_client.chat.completions.create(
         model=CLASSIFIER_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a football query normaliser. "
-                    "Expand any abbreviations, nicknames or shorthand in the user's question to full proper names. "
-                    "Examples: 'Wolves' → 'Wolverhampton', 'Spurs' → 'Tottenham', 'Villa' → 'Aston Villa', "
-                    "'Man City' → 'Manchester City', 'Man Utd' → 'Manchester United', "
-                    "'Forest' → 'Nottingham Forest', 'DCL' → 'Calvert-Lewin', "
-                    "'KDB' → 'De Bruyne', 'TAA' → 'Trent Alexander-Arnold'. "
-                    "Preserve the original phrasing and intent exactly — do not rephrase, summarise or add information. "
-                    "Return only the rewritten question as a plain string, nothing else."
-                )
-            },
-            {"role": "user", "content": query},
-        ],
+        messages=messages,
         temperature=0,
         max_tokens=100,
     )
@@ -295,7 +301,7 @@ Rules for the metadata:
 - caveat should be null if there are no limitations worth flagging
 """
 
-def generate_response(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None):
+def generate_response(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None, history=None):
     """Yields SSE events: token events for each answer chunk, then a done event with metadata."""
     rag_context = build_context(chunks)
 
@@ -313,12 +319,14 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
 
     user_message = _build_user_message(query, chunks, stats_context, used_fallback)
 
+    messages = [{"role": "system", "content": ANSWER_SYSTEM_PROMPT}]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": user_message})
+
     response = openai_client.chat.completions.create(
         model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": ANSWER_SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
+        messages=messages,
         stream=True,
     )
 
@@ -388,14 +396,15 @@ RECENCY_PATTERN = re.compile(
     re.IGNORECASE
 )
 
-def run_pipeline(query, from_date=None, gender=None):
+def run_pipeline(query, from_date=None, gender=None, history=None):
     """Pipeline entry point for streaming responses."""
     try:
+        history = history or []
         # Preserve the original query so user doesn't see normalized version
         original_query = query
 
         # Step 1: Normalise abbreviations and nicknames
-        query = rewrite_query(query)
+        query = rewrite_query(query, history=history)
 
         # Step 2: Classify the query — returns a set containing 'rag', 'stats', or both
         query_types = classify_query(query)
@@ -421,7 +430,7 @@ def run_pipeline(query, from_date=None, gender=None):
         retrieval_scores = [round(c["score"], 4) for c in chunks]
 
         # Step 4 + 5: Assemble context and stream the answer
-        yield from generate_response(original_query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores)
+        yield from generate_response(original_query, chunks, stats_context=stats_context, used_fallback=used_fallback, query_types=list(query_types), retrieval_scores=retrieval_scores, history=history)
 
     except Exception as e:
         import traceback
@@ -430,11 +439,11 @@ def run_pipeline(query, from_date=None, gender=None):
         yield f"data: {error_event}\n\n"
 
 
-def ask(query, from_date=None, gender=None):
+def ask(query, from_date=None, gender=None, history=None):
     """Non-streaming entry point — collects run_pipeline output into a dict. Used by tests and CLI."""
     answer_parts = []
     meta = {}
-    for raw in run_pipeline(query, from_date=from_date, gender=gender):
+    for raw in run_pipeline(query, from_date=from_date, gender=gender, history=history):
         if not raw.startswith("data: "):
             continue
         event = json.loads(raw[6:])

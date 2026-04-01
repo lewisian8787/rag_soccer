@@ -1,5 +1,10 @@
 import { useState } from 'react'
 
+export interface ConversationTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface AskResult {
   answer: string
   confidence: 'high' | 'medium' | 'low'
@@ -16,7 +21,11 @@ export function useAsk(onResult?: (r: AskResult) => void) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function ask(query: string, mode: 'football' | 'fpl' = 'football') {
+  async function ask(
+    query: string,
+    mode: 'football' | 'fpl' = 'football',
+    history: ConversationTurn[] = []
+  ) {
     setLoading(true)
     setStreamingText('')
     setResult(null)
@@ -26,7 +35,7 @@ export function useAsk(onResult?: (r: AskResult) => void) {
       const res = await fetch('/api/ask/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, mode }),
+        body: JSON.stringify({ query, mode, history }),
       })
 
       if (!res.ok) {

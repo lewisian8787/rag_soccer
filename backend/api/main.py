@@ -7,10 +7,26 @@ sys.path.insert(0, RETRIEVAL_DIR)
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import Literal
 
 import football.football_pipeline as football_pipeline
 import fpl.fpl_pipeline as fpl_pipeline  # noqa: F401 — fpl stub
 from football.query_stats import get_standings
+
+
+class ConversationTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class AskRequest(BaseModel):
+    query: str
+    mode: str = "football"
+    from_date: str | None = None
+    gender: str | None = None
+    history: list[ConversationTurn] = []
+
 
 app = FastAPI()
 
@@ -44,22 +60,23 @@ def standings_endpoint():
 
 # main and really only route.
 @app.post("/api/ask/stream")
-def ask_stream_endpoint(body: dict):
+def ask_stream_endpoint(body: AskRequest):
     # Extract and validate the query string from the request body.
-    query = body.get("query", "").strip()
+    query = body.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
 
     # Select the correct pipeline module based on the mode sent by the frontend
-    pipeline = _get_pipeline(body.get("mode", "football"))
+    pipeline = _get_pipeline(body.mode)
 
     # wraps the return in FastAPI's StreamingRepsonse object, which sends tokens back
-    # to the front end as soon as they are generated. 
+    # to the front end as soon as they are generated.
     return StreamingResponse(
         pipeline.run_pipeline(
             query=query,
-            from_date=body.get("from_date"),
-            gender=body.get("gender"),
+            from_date=body.from_date,
+            gender=body.gender,
+            history=[t.model_dump() for t in body.history],
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
