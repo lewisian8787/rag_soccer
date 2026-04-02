@@ -317,32 +317,65 @@ Guidelines:
 - Answer in first person as an analyst — never reference your sources, the match reports, the context, or how you derived the answer. Just answer directly as if you know it
 - Never say "the match reports suggest", "the narrative indicates", "based on available context", "the data shows", or any similar meta-commentary about sources
 
-Output your response in EXACTLY this format — answer text first, then the delimiter, then metadata JSON:
-
-[Your answer here as plain prose]
-<<<META>>>
-{{"confidence": "high|medium|low", "sources": [{{"title": "...", "published_at": "YYYY-MM-DD"}}], "caveat": "..." or null}}
-
-Rules for the metadata:
-- confidence should be "high" when the answer is based solely on structured stats and data was returned — stats are factual and precise
-- confidence should be "medium" when combining stats and match reports, or when match reports are the only source but chunks are clearly relevant
-- confidence should be "low" only when data is missing, ambiguous, or the context is insufficient to answer confidently
-- sources should only include match reports you actually drew from
-- caveat should be null if there are no limitations worth flagging
+Output only your answer as plain prose. Do not include any metadata, delimiters, or JSON.
 """
+
+def _confidence_score(chunks, stats_context) -> int:
+    """Returns a 1-10 confidence score based on retrieval quality and stats availability."""
+    has_stats = bool(stats_context)
+
+    if not chunks and not has_stats:
+        return 1
+
+    if not chunks:
+        # Stats only — factual and precise
+        return 10
+
+    avg_score = sum(c["score"] for c in chunks) / len(chunks)
+    # Map avg Pinecone score [0.45, 1.0] → [2, 8]
+    chunk_score = 2 + (avg_score - 0.45) / (1.0 - 0.45) * 6
+    chunk_score = round(min(max(chunk_score, 2), 8))
+
+    if has_stats:
+        chunk_score = min(chunk_score + 2, 10)
+
+    return chunk_score
+
+
+def _build_metadata(chunks, stats_context, used_fallback):
+    """Derives confidence, sources, and caveat from retrieval results — no LLM needed."""
+    confidence = _confidence_score(chunks, stats_context)
+
+    sources = [
+        {
+            "title": c["metadata"].get("title", ""),
+            "published_at": datetime.fromtimestamp(c["metadata"].get("published_at", 0)).strftime("%Y-%m-%d"),
+        }
+        for c in chunks
+    ]
+
+    caveat = (
+        "No match reports were found for the current season. Context is from the previous season (2024/25)."
+        if used_fallback else None
+    )
+
+    return confidence, sources, caveat
+
 
 def generate_response(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None, history=None):
     """Yields SSE events: token events for each answer chunk, then a done event with metadata."""
     rag_context = build_context(chunks)
 
     if not rag_context and not stats_context:
+        no_info = json.dumps({"type": "token", "text": "I couldn't find enough relevant information to answer this question."})
         no_data = json.dumps({
             "type": "done",
-            "confidence": "low",
+            "confidence": 1,
             "sources": [],
             "caveat": "No relevant match reports or stats found.",
+            "query_types": query_types or [],
+            "retrieval_scores": retrieval_scores or [],
         })
-        no_info = json.dumps({"type": "token", "text": "I couldn't find enough relevant information to answer this question."})
         yield f"data: {no_info}\n\n"
         yield f"data: {no_data}\n\n"
         return
@@ -364,48 +397,18 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
         stream=True,
     )
 
-    full_text = ""
-    answer_flushed = 0
-    DELIMITER = "<<<META>>>"
-    HOLD = len(DELIMITER) + 5  # hold back enough chars to detect delimiter mid-stream
-
     for chunk in response:
         delta = chunk.choices[0].delta.content or ""
         if not delta:
             continue
-        full_text += delta
+        yield f"data: {json.dumps({'type': 'token', 'text': delta})}\n\n"
 
-        if DELIMITER in full_text:
-            continue  # stop flushing once we've seen the delimiter
-
-        safe_to = max(0, len(full_text) - HOLD)
-        if safe_to > answer_flushed:
-            to_send = full_text[answer_flushed:safe_to]
-            answer_flushed = safe_to
-            yield f"data: {json.dumps({'type': 'token', 'text': to_send})}\n\n"
-
-    # Flush remaining answer and parse metadata
-    if DELIMITER in full_text:
-        answer_part, meta_part = full_text.split(DELIMITER, 1)
-        remaining = answer_part[answer_flushed:]
-    else:
-        answer_part = full_text
-        remaining = full_text[answer_flushed:]
-        meta_part = ""
-
-    if remaining.strip():
-        yield f"data: {json.dumps({'type': 'token', 'text': remaining})}\n\n"
-
-    try:
-        meta = json.loads(meta_part.strip()) if meta_part.strip() else {}
-    except Exception:
-        meta = {}
-
+    confidence, sources, caveat = _build_metadata(chunks, stats_context, used_fallback)
     done_event = json.dumps({
         "type": "done",
-        "confidence": meta.get("confidence", "low"),
-        "sources": meta.get("sources", []),
-        "caveat": meta.get("caveat"),
+        "confidence": confidence,
+        "sources": sources,
+        "caveat": caveat,
         "query_types": query_types or [],
         "retrieval_scores": retrieval_scores or [],
     })

@@ -7,7 +7,7 @@ export interface ConversationTurn {
 
 export interface AskResult {
   answer: string
-  confidence: 'high' | 'medium' | 'low'
+  confidence: number
   sources: { title: string; published_at: string }[]
   caveat: string | null
   query: string
@@ -64,6 +64,7 @@ export function useAsk() {
             throw new Error(event.message ?? 'Stream error from server')
           } else if (event.type === 'token') {
             accumulatedAnswer += event.text
+            setFullText(accumulatedAnswer)
           } else if (event.type === 'done') {
             const r: AskResult = {
               answer: accumulatedAnswer,
@@ -80,7 +81,6 @@ export function useAsk() {
             if (r.retrieval_scores.length) console.log('Retrieval scores:', r.retrieval_scores)
             if (r.caveat) console.log('Caveat:', r.caveat)
             console.groupEnd()
-            setFullText(accumulatedAnswer)
             setResult(r)
           }
         }

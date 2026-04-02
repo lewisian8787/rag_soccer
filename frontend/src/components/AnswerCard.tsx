@@ -9,48 +9,69 @@ interface Props {
   onAnimationComplete?: (result: AskResult) => void
 }
 
-const CONFIDENCE_STYLES = {
-  high: 'text-emerald-400 border-emerald-700 bg-emerald-950',
-  medium: 'text-amber-400 border-amber-700 bg-amber-950',
-  low: 'text-red-400 border-red-700 bg-red-950',
-}
-
-const CONFIDENCE_DOT = {
-  high: 'bg-emerald-400',
-  medium: 'bg-amber-400',
-  low: 'bg-red-400',
-}
-
 const CHARS_PER_TICK = 2
 const TICK_MS = 60
+
+function ConfidenceSlider({ score }: { score: number }) {
+  const pct = ((score - 1) / 9) * 100
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>cold</span>
+        <span>hot</span>
+      </div>
+      <div className="relative h-2 rounded-full overflow-hidden" style={{
+        background: 'linear-gradient(to right, #3b82f6, #06b6d4, #84cc16, #f59e0b, #ef4444)'
+      }}>
+        <div
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow-md -translate-x-1/2"
+          style={{ left: `${pct}%`, background: `hsl(${220 - pct * 2.2}deg 90% 55%)` }}
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function AnswerCard({ result, fullText, loading, error, onAnimationComplete }: Props) {
   const [displayedLength, setDisplayedLength] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const fullTextRef = useRef(fullText)
+  fullTextRef.current = fullText
+
+  // Unmount cleanup
+  useEffect(() => {
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [])
 
   useEffect(() => {
-    // New answer arrived — reset and start animating
-    if (fullText) {
+    if (!fullText) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
       setDisplayedLength(0)
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      intervalRef.current = setInterval(() => {
-        setDisplayedLength(prev => {
-          const next = Math.min(prev + CHARS_PER_TICK, fullText.length)
-          if (next >= fullText.length) {
-            clearInterval(intervalRef.current!)
-          }
-          return next
-        })
-      }, TICK_MS)
+      return
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
+
+    if (intervalRef.current) return // already animating, interval chases fullTextRef naturally
+
+    setDisplayedLength(0)
+    intervalRef.current = setInterval(() => {
+      setDisplayedLength(prev => {
+        const next = Math.min(prev + CHARS_PER_TICK, fullTextRef.current.length)
+        if (next >= fullTextRef.current.length) {
+          clearInterval(intervalRef.current!)
+          intervalRef.current = null
+        }
+        return next
+      })
+    }, TICK_MS)
   }, [fullText])
 
-  // Fire onAnimationComplete when animation finishes
+  // Fire onAnimationComplete when animation catches up and stream is done
   useEffect(() => {
-    if (fullText && displayedLength >= fullText.length && result) {
+    if (result && fullText && displayedLength >= fullText.length) {
       onAnimationComplete?.(result)
     }
   }, [displayedLength, fullText, result])
@@ -75,7 +96,7 @@ export default function AnswerCard({ result, fullText, loading, error, onAnimati
     )
   }
 
-  if (isAnimating) {
+  if (isAnimating || (loading && fullText)) {
     return (
       <div aria-live="polite" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-6">
         <p className="text-white leading-relaxed whitespace-pre-wrap">
@@ -88,19 +109,13 @@ export default function AnswerCard({ result, fullText, loading, error, onAnimati
 
   if (!result) return null
 
-  const confStyle = CONFIDENCE_STYLES[result.confidence] ?? CONFIDENCE_STYLES.low
-  const dotStyle = CONFIDENCE_DOT[result.confidence] ?? CONFIDENCE_DOT.low
-
   return (
     <div aria-live="polite" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] overflow-hidden">
       <div className="px-7 py-5">
         <p className="text-white leading-relaxed whitespace-pre-wrap">{result.answer}</p>
       </div>
       <div className="px-7 pb-5 flex flex-col gap-3">
-        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold w-fit px-3 py-1 rounded-full border ${confStyle}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${dotStyle}`} />
-          {result.confidence} confidence
-        </span>
+        <ConfidenceSlider score={result.confidence} />
         {result.caveat && (
           <p className="text-xs text-amber-400 leading-relaxed border-l-2 border-amber-600 pl-3">
             {result.caveat}
