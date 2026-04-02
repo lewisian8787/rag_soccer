@@ -21,7 +21,7 @@ const CONFIDENCE_DOT = {
 }
 
 // Advance this many characters per tick — tune for desired reading pace
-const CHARS_PER_TICK = 8
+const CHARS_PER_TICK = 2
 const TICK_MS = 30
 
 export default function AnswerCard({ result, streamingText, loading, error }: Props) {
@@ -33,17 +33,18 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     queueRef.current = streamingText
   }, [streamingText])
 
-  // Reset on new query
+  // Reset only when a new query starts (loading becomes true with no text yet)
   useEffect(() => {
-    if (!loading) {
+    if (loading && !streamingText) {
       setDisplayedText('')
       queueRef.current = ''
     }
   }, [loading])
 
-  // Advance display by CHARS_PER_TICK characters every TICK_MS regardless of stream speed
+  // Advance display by CHARS_PER_TICK characters every TICK_MS.
+  // Keeps running after loading ends so the animation fully drains the queue
+  // before the final result view is shown.
   useEffect(() => {
-    if (!loading) return
     const interval = setInterval(() => {
       setDisplayedText(prev => {
         const target = queueRef.current
@@ -52,7 +53,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
       })
     }, TICK_MS)
     return () => clearInterval(interval)
-  }, [loading])
+  }, [])
 
   if (error) {
     return (
@@ -62,7 +63,9 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     )
   }
 
-  if (loading && !displayedText) {
+  const isAnimating = displayedText.length < queueRef.current.length
+
+  if ((loading || isAnimating) && !displayedText) {
     return (
       <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-8 flex items-center gap-3">
         <span aria-hidden="true" className="text-2xl motion-safe:animate-bounce" style={{ animationDuration: '0.8s' }}>⚽</span>
@@ -71,7 +74,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     )
   }
 
-  if (loading && displayedText) {
+  if (loading || isAnimating) {
     return (
       <div aria-live="polite" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-6">
         <p className="text-white leading-relaxed whitespace-pre-wrap">
