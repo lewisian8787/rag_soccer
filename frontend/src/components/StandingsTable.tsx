@@ -3,9 +3,10 @@ import { useStandings } from '../hooks/useStandings'
 
 interface Props {
   onTeamClick: (query: string) => void
+  disabled?: boolean
 }
 
-export default function StandingsTable({ onTeamClick }: Props) {
+export default function StandingsTable({ onTeamClick, disabled = false }: Props) {
   const [collapsed, setCollapsed] = useState(true)
   const { standings, loading, error } = useStandings()
 
@@ -73,7 +74,8 @@ export default function StandingsTable({ onTeamClick }: Props) {
                     <td className="px-1 py-2">
                       <button
                         onClick={() => onTeamClick(`Tell me about ${row.team}'s season so far`)}
-                        className="text-left text-gray-300 hover:text-white transition-colors w-full truncate block"
+                        disabled={disabled}
+                        className="text-left text-gray-300 hover:text-white transition-colors w-full truncate block disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-300"
                       >
                         {row.team}
                       </button>

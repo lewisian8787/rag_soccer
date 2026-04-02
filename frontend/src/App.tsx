@@ -207,7 +207,7 @@ function App() {
         )}
       </main>
 
-      <StandingsTable onTeamClick={handleAsk} />
+      <StandingsTable onTeamClick={handleAsk} disabled={loading} />
 
     </div>
   )

@@ -29,7 +29,8 @@ export default function InputBar({ onAsk, loading, mode = 'football' }: Props) {
         onChange={(e) => setInput(e.target.value)}
         placeholder={mode === 'fpl' ? 'e.g. Who should I captain this week?' : 'e.g. Who has been clinical up front recently?'}
         autoFocus
-        className="flex-1 bg-[#162b1f] border border-emerald-700/60 rounded-xl px-5 py-3.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400 transition-colors shadow-[0_2px_24px_rgba(0,0,0,0.5)]"
+        disabled={loading}
+        className="flex-1 bg-[#162b1f] border border-emerald-700/60 rounded-xl px-5 py-3.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-400 transition-colors shadow-[0_2px_24px_rgba(0,0,0,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
       />
       <button
         type="submit"
