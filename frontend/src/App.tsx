@@ -13,11 +13,11 @@ const MAX_HISTORY_TURNS = 10
 const EXAMPLE_QUESTIONS: Record<Mode, { label: string; type: 'stats' | 'rag' }[]> = {
   football: [
     { label: 'Who are the top scorers this season?', type: 'stats' },
-    { label: "How does Arsenal play out from the back?", type: 'rag' },
-    { label: 'Which team has the best defensive record?', type: 'stats' },
-    { label: "What's Liverpool's pressing style like?", type: 'rag' },
-    { label: "Who has the most assists this season?", type: 'stats' },
-    { label: 'How have Chelsea been performing recently?', type: 'rag' },
+    { label: 'What was the score the last time Leeds played Liverpool?', type: 'stats' },
+    { label: 'Who has the most assists since Christmas?', type: 'stats' },
+    { label: 'How do Burnley like to play?', type: 'rag' },
+    { label: 'How have Chelsea been performing since the new manager took over?', type: 'rag' },
+    { label: 'Are Man United good?', type: 'rag' },
   ],
   fpl: [
     { label: 'Who should I captain this week?', type: 'stats' },
