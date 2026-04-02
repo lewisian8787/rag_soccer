@@ -31,7 +31,7 @@ const EXAMPLE_QUESTIONS: Record<Mode, { label: string; type: 'stats' | 'rag' }[]
 
 function App() {
   const [mode, setMode] = useState<Mode>('football')
-  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [history, setHistory] = useState<HistoryEntry[][]>([[]])
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [currentQuery, setCurrentQuery] = useState('')
   const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
@@ -46,8 +46,9 @@ function App() {
     const entry = { query: r.query, result: r }
     setActiveHistory(prev => [...prev, entry])
     setHistory(prev => {
-      const next = [...prev, entry]
-      setSelectedIndex(next.length - 1)
+      const next = [...prev]
+      next[next.length - 1] = [...next[next.length - 1], entry]
+      setSelectedIndex(next.filter(c => c.length > 0).length - 1)
       return next
     })
     setConversationHistory(prev => {
@@ -77,7 +78,7 @@ function App() {
   function handleModeChange(next: Mode) {
     setMode(next)
     setSelectedIndex(null)
-    setHistory([])
+    setHistory([[]])
     setConversationHistory([])
   }
 
@@ -86,6 +87,7 @@ function App() {
     setConversationHistory([])
     setSelectedIndex(null)
     clearFullText()
+    setHistory(prev => [...prev, []])
   }
 
   const hasContent = activeHistory.length > 0 || loading || !!fullText || !!error

@@ -7,19 +7,15 @@ export interface HistoryEntry {
 }
 
 interface Props {
-  history: HistoryEntry[]
+  history: HistoryEntry[][]
   selectedIndex: number | null
   onSelect: (index: number) => void
 }
 
-const CONFIDENCE_DOT: Record<string, string> = {
-  high: 'bg-emerald-400',
-  medium: 'bg-amber-400',
-  low: 'bg-red-400',
-}
-
 export default function HistorySidebar({ history, selectedIndex, onSelect }: Props) {
   const [collapsed, setCollapsed] = useState(true)
+
+  const conversations = history.filter(c => c.length > 0)
 
   return (
     <aside
@@ -59,12 +55,14 @@ export default function HistorySidebar({ history, selectedIndex, onSelect }: Pro
           </div>
 
           <div className="flex-1 overflow-y-auto py-2">
-            {history.length === 0 ? (
+            {conversations.length === 0 ? (
               <p className="text-xs text-gray-600 px-4 pt-4">Questions will appear here</p>
             ) : (
-              [...history].reverse().map((entry, reversedIndex) => {
-                const index = history.length - 1 - reversedIndex
+              [...conversations].reverse().map((conversation, reversedIndex) => {
+                const index = conversations.length - 1 - reversedIndex
                 const isSelected = index === selectedIndex
+                const firstQuestion = conversation[0].query
+                const count = conversation.length
                 return (
                   <button
                     key={index}
@@ -73,12 +71,12 @@ export default function HistorySidebar({ history, selectedIndex, onSelect }: Pro
                       isSelected ? 'bg-[#162d1c]' : ''
                     }`}
                   >
-                    <div className="flex items-start gap-2">
-                      <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${CONFIDENCE_DOT[entry.result.confidence] ?? 'bg-emerald-800'}`} />
-                      <p className={`text-xs leading-snug line-clamp-2 ${isSelected ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
-                        {entry.query}
-                      </p>
-                    </div>
+                    <p className={`text-xs leading-snug line-clamp-2 ${isSelected ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                      {firstQuestion}
+                    </p>
+                    {count > 1 && (
+                      <p className="text-xs text-gray-600 mt-1">{count} questions</p>
+                    )}
                   </button>
                 )
               })
