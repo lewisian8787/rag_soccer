@@ -15,7 +15,7 @@ export interface AskResult {
   retrieval_scores: number[]
 }
 
-export function useAsk(onResult?: (r: AskResult) => void) {
+export function useAsk() {
   const [result, setResult] = useState<AskResult | null>(null)
   const [fullText, setFullText] = useState<string>('')
   const [loading, setLoading] = useState(false)
@@ -82,7 +82,6 @@ export function useAsk(onResult?: (r: AskResult) => void) {
             console.groupEnd()
             setFullText(accumulatedAnswer)
             setResult(r)
-            onResult?.(r)
           }
         }
       }

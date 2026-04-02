@@ -6,6 +6,7 @@ interface Props {
   fullText: string
   loading: boolean
   error: string | null
+  onAnimationComplete?: (result: AskResult) => void
 }
 
 const CONFIDENCE_STYLES = {
@@ -23,7 +24,7 @@ const CONFIDENCE_DOT = {
 const CHARS_PER_TICK = 2
 const TICK_MS = 30
 
-export default function AnswerCard({ result, fullText, loading, error }: Props) {
+export default function AnswerCard({ result, fullText, loading, error, onAnimationComplete }: Props) {
   const [displayedLength, setDisplayedLength] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -34,11 +35,11 @@ export default function AnswerCard({ result, fullText, loading, error }: Props) 
       if (intervalRef.current) clearInterval(intervalRef.current)
       intervalRef.current = setInterval(() => {
         setDisplayedLength(prev => {
-          if (prev >= fullText.length) {
+          const next = Math.min(prev + CHARS_PER_TICK, fullText.length)
+          if (next >= fullText.length) {
             clearInterval(intervalRef.current!)
-            return prev
           }
-          return Math.min(prev + CHARS_PER_TICK, fullText.length)
+          return next
         })
       }, TICK_MS)
     }
@@ -46,6 +47,13 @@ export default function AnswerCard({ result, fullText, loading, error }: Props) 
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [fullText])
+
+  // Fire onAnimationComplete when animation finishes
+  useEffect(() => {
+    if (fullText && displayedLength >= fullText.length && result) {
+      onAnimationComplete?.(result)
+    }
+  }, [displayedLength, fullText, result])
 
   const displayedText = fullText.slice(0, displayedLength)
   const isAnimating = fullText.length > 0 && displayedLength < fullText.length

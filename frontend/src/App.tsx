@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useAsk, type ConversationTurn } from './hooks/useAsk'
+import { useAsk, type ConversationTurn, type AskResult } from './hooks/useAsk'
 import InputBar from './components/InputBar'
 import AnswerCard from './components/AnswerCard'
 import HistorySidebar from './components/HistorySidebar'
@@ -38,13 +38,14 @@ function App() {
   const activeQueryRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
-  const { fullText, loading, error, ask } = useAsk((r) => {
+  const { fullText, result, loading, error, ask } = useAsk()
+
+  function handleAnimationComplete(r: AskResult) {
     setHistory(prev => {
       const next = [...prev, { query: r.query, result: r }]
       setSelectedIndex(next.length - 1)
       return next
     })
-
     setConversationHistory(prev => {
       const updated = [...prev,
         { role: 'user' as const, content: r.query },
@@ -53,7 +54,7 @@ function App() {
       const maxMessages = MAX_HISTORY_TURNS * 2
       return updated.length > maxMessages ? updated.slice(updated.length - maxMessages) : updated
     })
-  })
+  }
 
   useEffect(() => {
     if (loading) {
@@ -151,10 +152,11 @@ function App() {
                   </div>
                 </div>
                 <AnswerCard
-                  result={null}
+                  result={result}
                   fullText={fullText}
                   loading={loading}
                   error={error}
+                  onAnimationComplete={handleAnimationComplete}
                 />
               </div>
             )}
