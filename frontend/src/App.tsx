@@ -35,6 +35,7 @@ function App() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [currentQuery, setCurrentQuery] = useState('')
   const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
+  const [activeHistory, setActiveHistory] = useState<HistoryEntry[]>([])
   const activeQueryRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
@@ -42,8 +43,10 @@ function App() {
 
   function handleAnimationComplete(r: AskResult) {
     clearFullText()
+    const entry = { query: r.query, result: r }
+    setActiveHistory(prev => [...prev, entry])
     setHistory(prev => {
-      const next = [...prev, { query: r.query, result: r }]
+      const next = [...prev, entry]
       setSelectedIndex(next.length - 1)
       return next
     })
@@ -79,12 +82,13 @@ function App() {
   }
 
   function handleNewConversation() {
+    setActiveHistory([])
     setConversationHistory([])
     setSelectedIndex(null)
     clearFullText()
   }
 
-  const hasContent = history.length > 0 || loading || !!fullText || !!error
+  const hasContent = activeHistory.length > 0 || loading || !!fullText || !!error
 
   return (
     <div className="flex h-screen overflow-hidden pitch-bg text-white">
@@ -136,7 +140,7 @@ function App() {
         <div ref={scrollAreaRef} className="flex-1 overflow-y-auto flex flex-col items-center px-4 py-2">
           {hasContent && (
             <div className="w-full max-w-2xl mb-4 flex flex-col gap-4">
-            {history.map((entry, i) => (
+            {activeHistory.map((entry, i) => (
               <div key={i} className="flex flex-col gap-4">
                 <div className="flex justify-end">
                   <div className="bg-[#1e3d2a] border border-emerald-700/60 text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
