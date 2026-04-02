@@ -102,7 +102,9 @@ function App() {
       <main className="flex-1 flex flex-col">
         <header className="mt-10 mb-30 text-center px-4 shrink-0">
           <div className="flex flex-col items-center mb-3">
-            <img src="/logos/dugout-green.png" alt="The Dugout" className="w-40 h-auto object-contain" />
+            <button onClick={handleNewConversation} aria-label="New conversation">
+              <img src="/logos/dugout-green.png" alt="The Dugout" className="w-40 h-auto object-contain hover:opacity-80 transition-opacity" />
+            </button>
             <p className="text-gray-500 text-sm mt-1">Tactics, form, stats and maybe fantasy — powered by match reports</p>
           </div>
 
