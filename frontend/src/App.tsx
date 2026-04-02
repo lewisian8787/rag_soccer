@@ -139,9 +139,9 @@ function App() {
         </header>
 
         {/* Scrollable conversation area */}
-        <div ref={scrollAreaRef} className="flex-1 overflow-y-auto flex flex-col items-center px-4 py-2">
+        <div className="flex-1 flex flex-col items-center px-4 py-2 min-h-0">
           {hasContent && (
-            <div className="w-full max-w-2xl mb-4 flex flex-col gap-4">
+            <div ref={scrollAreaRef} className="w-full max-w-2xl mb-4 flex flex-col gap-4 overflow-y-auto">
             {activeHistory.map((entry, i) => (
               <div key={i} className="flex flex-col gap-4">
                 <div className="flex justify-end">
