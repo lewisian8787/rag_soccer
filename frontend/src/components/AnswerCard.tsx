@@ -22,7 +22,7 @@ const CONFIDENCE_DOT = {
 }
 
 const CHARS_PER_TICK = 2
-const TICK_MS = 30
+const TICK_MS = 60
 
 export default function AnswerCard({ result, fullText, loading, error, onAnimationComplete }: Props) {
   const [displayedLength, setDisplayedLength] = useState(0)
