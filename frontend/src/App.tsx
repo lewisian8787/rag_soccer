@@ -79,7 +79,6 @@ function App() {
   }
 
   function handleNewConversation() {
-    setHistory([])
     setConversationHistory([])
     setSelectedIndex(null)
     clearFullText()
