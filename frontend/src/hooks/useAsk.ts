@@ -75,11 +75,23 @@ export function useAsk() {
               query_types: event.query_types ?? [],
               retrieval_scores: event.retrieval_scores ?? [],
             }
+            const usage = event.usage ?? {}
+            const promptTokens = usage.prompt_tokens ?? 0
+            const totalTokens = usage.total_tokens ?? 0
+            const contextLimit = 128000
+            const remaining = contextLimit - promptTokens
+
             console.group(`[FFG] ${query}`)
             console.log('Pipeline:', r.query_types.join(' + ') || 'unknown')
             console.log('Confidence:', r.confidence)
             if (r.retrieval_scores.length) console.log('Retrieval scores:', r.retrieval_scores)
             if (r.caveat) console.log('Caveat:', r.caveat)
+            console.group('Context usage (gpt-4o, 128k limit)')
+            console.log(`Prompt tokens:     ${promptTokens.toLocaleString()}`)
+            console.log(`Completion tokens: ${(usage.completion_tokens ?? 0).toLocaleString()}`)
+            console.log(`Total tokens:      ${totalTokens.toLocaleString()}`)
+            console.log(`Remaining:         ${remaining.toLocaleString()} / ${contextLimit.toLocaleString()} (${((remaining / contextLimit) * 100).toFixed(1)}% free)`)
+            console.groupEnd()
             console.groupEnd()
             setResult(r)
           }

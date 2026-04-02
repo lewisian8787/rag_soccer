@@ -433,10 +433,18 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
         model=LLM_MODEL,
         messages=messages,
         stream=True,
+        stream_options={"include_usage": True},
     )
 
     full_answer = ""
+    usage = {}
     for chunk in response:
+        if chunk.usage:
+            usage = {
+                "prompt_tokens": chunk.usage.prompt_tokens,
+                "completion_tokens": chunk.usage.completion_tokens,
+                "total_tokens": chunk.usage.total_tokens,
+            }
         delta = chunk.choices[0].delta.content or ""
         if not delta:
             continue
@@ -457,6 +465,7 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
         "caveat": caveat,
         "query_types": query_types or [],
         "retrieval_scores": retrieval_scores or [],
+        "usage": usage,
     })
     yield f"data: {done_event}\n\n"
 
