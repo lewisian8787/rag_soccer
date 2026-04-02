@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import type { AskResult } from '../hooks/useAsk'
 
 interface Props {
@@ -7,8 +6,6 @@ interface Props {
   loading: boolean
   error: string | null
 }
-
-const CHAR_DELAY_MS = 28
 
 const CONFIDENCE_STYLES = {
   high: 'text-emerald-400 border-emerald-700 bg-emerald-950',
@@ -23,30 +20,6 @@ const CONFIDENCE_DOT = {
 }
 
 export default function AnswerCard({ result, streamingText, loading, error }: Props) {
-  const targetRef = useRef('')
-  const [displayedText, setDisplayedText] = useState('')
-
-  const isTyping = displayedText.length < targetRef.current.length
-
-  useEffect(() => {
-    if (streamingText) targetRef.current = streamingText
-  }, [streamingText])
-
-  useEffect(() => {
-    if (loading && !streamingText) {
-      targetRef.current = ''
-      setDisplayedText('')
-    }
-  }, [loading, streamingText])
-
-  useEffect(() => {
-    if (displayedText.length >= targetRef.current.length) return
-    const timer = setTimeout(() => {
-      setDisplayedText(targetRef.current.slice(0, displayedText.length + 1))
-    }, CHAR_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [displayedText, streamingText])
-
   if (error) {
     return (
       <div role="alert" className="rounded-2xl border border-red-800 bg-red-950 px-7 py-5 text-sm text-red-300">
@@ -55,7 +28,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     )
   }
 
-  if (loading && !streamingText && !displayedText) {
+  if (loading && !streamingText) {
     return (
       <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-8 flex items-center gap-3">
         <span aria-hidden="true" className="text-2xl motion-safe:animate-bounce" style={{ animationDuration: '0.8s' }}>⚽</span>
@@ -64,12 +37,12 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     )
   }
 
-  if (isTyping || (!result && displayedText)) {
+  if (streamingText) {
     return (
       <div aria-live="polite" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-6">
         <p className="text-white leading-relaxed whitespace-pre-wrap">
-          {displayedText}
-          {isTyping && <span aria-hidden="true" className="motion-safe:animate-bounce inline-block" style={{ animationDuration: '0.8s' }}> ⚽</span>}
+          {streamingText}
+          <span aria-hidden="true" className="motion-safe:animate-bounce inline-block" style={{ animationDuration: '0.8s' }}> ⚽</span>
         </p>
       </div>
     )
