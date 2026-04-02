@@ -5,6 +5,24 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* Slim, themed scrollbar for the conversation area */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a5438;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3d7a52;
+}
+
 .pitch-bg {
   background-color: #0a1a0e;
   background-image: url('/pitch-lines.svg');
