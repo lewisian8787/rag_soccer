@@ -342,21 +342,22 @@ def _assess_confidence(answer: str, query: str, chunks: list, stats_context: str
     has_stats = bool(stats_context)
     has_chunks = bool(chunks)
 
-    context_summary = []
-    if has_stats:
-        context_summary.append("Structured stats data was available.")
+    context_parts = []
+    if stats_context:
+        context_parts.append(f"STRUCTURED STATS:\n{stats_context}")
     if has_chunks:
         avg_score = sum(c["score"] for c in chunks) / len(chunks)
-        context_summary.append(
-            f"{len(chunks)} match report chunks retrieved (avg relevance score: {avg_score:.2f})."
+        rag_summary = build_context(chunks)
+        context_parts.append(
+            f"MATCH REPORT CHUNKS ({len(chunks)} retrieved, avg relevance score: {avg_score:.2f}):\n{rag_summary}"
         )
-    if not context_summary:
-        context_summary.append("No data was available.")
+    if not context_parts:
+        context_parts.append("No data was available.")
 
     user_message = (
         f"Question: {query}\n\n"
-        f"Data available: {' '.join(context_summary)}\n\n"
-        f"Answer: {answer}"
+        f"Data used to generate the answer:\n\n{'---'.join(context_parts)}\n\n"
+        f"Answer given: {answer}"
     )
 
     response = openai_client.chat.completions.create(
@@ -445,6 +446,8 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
                 "completion_tokens": chunk.usage.completion_tokens,
                 "total_tokens": chunk.usage.total_tokens,
             }
+        if not chunk.choices:
+            continue
         delta = chunk.choices[0].delta.content or ""
         if not delta:
             continue
