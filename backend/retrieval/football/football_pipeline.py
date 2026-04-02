@@ -93,6 +93,7 @@ Rules:
 - Fantasy questions (e.g. "Is X worth picking?", "Who should I start?") → always both
 - Subjective quality questions about players (e.g. "Who has been clinical?", "Who has been creative?") → always both — stats confirm it, reports explain it
 - Any question asking about a specific positional role (e.g. "best right winger", "best center mid", "best number 10", "best false 9", "best box-to-box", "best defensive mid", "best left back") → rag only — structured data only stores four broad positions (GK/DEF/MID/FWD) and cannot distinguish specific roles within them
+- Squad or personnel questions (e.g. "who is their goalkeeper?", "who plays left back for X?", "who is X's number 9?", "what is X's starting XI?") → rag only — stats do not store squad composition or positional assignments
 - Match recap questions (e.g. "What happened in the last X game?", "How did X get on?", "What was the result when X played Y?") → always both — stats for the actual result, RAG for the narrative context
 - Any references to 'recent' or 'as of late' or anything that implies recent, only utilize sources from the last month
 
