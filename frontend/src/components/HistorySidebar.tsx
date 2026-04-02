@@ -8,14 +8,18 @@ export interface HistoryEntry {
 
 interface Props {
   history: HistoryEntry[][]
-  selectedIndex: number | null
-  onSelect: (index: number) => void
+  activeIndex: number | null
+  responding: boolean
+  onSelect: (rawIndex: number) => void
 }
 
-export default function HistorySidebar({ history, selectedIndex, onSelect }: Props) {
+export default function HistorySidebar({ history, activeIndex, responding, onSelect }: Props) {
   const [collapsed, setCollapsed] = useState(true)
 
-  const conversations = history.filter(c => c.length > 0)
+  // Preserve raw history[] indices so onSelect reports the correct slot
+  const conversations = history
+    .map((conversation, rawIndex) => ({ conversation, rawIndex }))
+    .filter(({ conversation }) => conversation.length > 0)
 
   return (
     <aside
@@ -58,21 +62,21 @@ export default function HistorySidebar({ history, selectedIndex, onSelect }: Pro
             {conversations.length === 0 ? (
               <p className="text-xs text-gray-600 px-4 pt-4">Questions will appear here</p>
             ) : (
-              [...conversations].reverse().map((conversation, reversedIndex) => {
-                const index = conversations.length - 1 - reversedIndex
-                const isSelected = index === selectedIndex
-                const firstQuestion = conversation[0].query
+              [...conversations].reverse().map(({ conversation, rawIndex }) => {
+                const isActive = rawIndex === activeIndex
                 const count = conversation.length
                 return (
                   <button
-                    key={index}
-                    onClick={() => onSelect(index)}
-                    className={`w-full text-left px-4 py-3 border-b border-[#1e3d28] hover:bg-[#162d1c] transition-colors group ${
-                      isSelected ? 'bg-[#162d1c]' : ''
-                    }`}
+                    key={rawIndex}
+                    onClick={() => onSelect(rawIndex)}
+                    disabled={responding}
+                    className={`w-full text-left px-4 py-3 border-b border-[#1e3d28] transition-colors group
+                      ${isActive ? 'bg-[#162d1c] border-l-2 border-l-emerald-400' : 'hover:bg-[#162d1c]'}
+                      ${responding ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                    `}
                   >
-                    <p className={`text-xs leading-snug line-clamp-2 ${isSelected ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
-                      {firstQuestion}
+                    <p className={`text-xs leading-snug line-clamp-2 ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                      {conversation[0].query}
                     </p>
                     {count > 1 && (
                       <p className="text-xs text-gray-600 mt-1">{count} questions</p>

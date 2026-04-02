@@ -32,7 +32,7 @@ const EXAMPLE_QUESTIONS: Record<Mode, { label: string; type: 'stats' | 'rag' }[]
 function App() {
   const [mode, setMode] = useState<Mode>('football')
   const [history, setHistory] = useState<HistoryEntry[][]>([[]])
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const [currentQuery, setCurrentQuery] = useState('')
   const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
   const [activeHistory, setActiveHistory] = useState<HistoryEntry[]>([])
@@ -42,6 +42,7 @@ function App() {
 
   const { fullText, result, loading, error, ask, clearFullText } = useAsk()
 
+  // --- Animation complete: append entry to the active history slot ---
   function handleAnimationComplete(r: AskResult) {
     setResponding(false)
     clearFullText()
@@ -49,12 +50,14 @@ function App() {
     setActiveHistory(prev => [...prev, entry])
     setHistory(prev => {
       const next = [...prev]
-      next[next.length - 1] = [...next[next.length - 1], entry]
-      setSelectedIndex(next.filter(c => c.length > 0).length - 1)
+      const targetIndex = activeIndex !== null ? activeIndex : next.length - 1
+      next[targetIndex] = [...next[targetIndex], entry]
+      setActiveIndex(targetIndex)
       return next
     })
     setConversationHistory(prev => {
-      const updated = [...prev,
+      const updated = [
+        ...prev,
         { role: 'user' as const, content: r.query },
         { role: 'assistant' as const, content: r.answer },
       ]
@@ -71,8 +74,26 @@ function App() {
     }
   }, [loading])
 
+  // --- Resume a past conversation from the sidebar ---
+  function handleSelectConversation(rawIndex: number) {
+    if (responding) return
+    const conversation = history[rawIndex]
+    if (!conversation || conversation.length === 0) return
+
+    const rebuilt: ConversationTurn[] = conversation.flatMap(entry => [
+      { role: 'user' as const, content: entry.query },
+      { role: 'assistant' as const, content: entry.result.answer },
+    ])
+    const maxMessages = MAX_HISTORY_TURNS * 2
+    const trimmed = rebuilt.length > maxMessages ? rebuilt.slice(rebuilt.length - maxMessages) : rebuilt
+
+    setActiveHistory([...conversation])
+    setConversationHistory(trimmed)
+    setActiveIndex(rawIndex)
+    clearFullText()
+  }
+
   function handleAsk(query: string) {
-    setSelectedIndex(null)
     setCurrentQuery(query)
     setResponding(true)
     ask(query, mode, conversationHistory)
@@ -80,7 +101,7 @@ function App() {
 
   function handleModeChange(next: Mode) {
     setMode(next)
-    setSelectedIndex(null)
+    setActiveIndex(null)
     setHistory([[]])
     setConversationHistory([])
   }
@@ -88,7 +109,7 @@ function App() {
   function handleNewConversation() {
     setActiveHistory([])
     setConversationHistory([])
-    setSelectedIndex(null)
+    setActiveIndex(null)
     clearFullText()
     setHistory(prev => [...prev, []])
   }
@@ -100,8 +121,9 @@ function App() {
 
       <HistorySidebar
         history={history}
-        selectedIndex={selectedIndex}
-        onSelect={setSelectedIndex}
+        activeIndex={activeIndex}
+        responding={responding}
+        onSelect={handleSelectConversation}
       />
 
       <main className="flex-1 flex flex-col">
