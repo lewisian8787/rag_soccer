@@ -1,17 +1,32 @@
 import os
+from contextlib import contextmanager
 from datetime import datetime
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 from dotenv import load_dotenv
 
 load_dotenv()
 
 DB_CONN = os.getenv("DATABASE_URL")
 
+_pool = psycopg2.pool.ThreadedConnectionPool(
+    1, 10, DB_CONN, cursor_factory=psycopg2.extras.RealDictCursor
+)
 
-# -- Connect to the local database --
+
+# -- Borrow a connection from the pool, commit on exit, return it when done --
+@contextmanager
 def get_conn():
-    return psycopg2.connect(DB_CONN, cursor_factory=psycopg2.extras.RealDictCursor)
+    conn = _pool.getconn()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        _pool.putconn(conn)
 
 # --  THIS FILE LISTS ALL POSSIBLE SQL QUERIES THAT WOULD BE NEEDED --
 # -- last updated march 29
