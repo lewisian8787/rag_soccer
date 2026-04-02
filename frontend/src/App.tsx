@@ -107,7 +107,7 @@ function App() {
             <button onClick={handleNewConversation} aria-label="New conversation">
               <img src="/logos/dugout-green.png" alt="The Dugout" className="w-40 h-auto object-contain hover:opacity-80 transition-opacity" />
             </button>
-            <p className="text-gray-500 text-sm mt-1">Tactics, form, stats and maybe fantasy — powered by match reports</p>
+            <p className="text-gray-500 text-sm mt-1">Tactics, form, stats and maybe fantasy — powered by Guardian articles</p>
           </div>
 
           {/* Mode toggle */}
@@ -202,7 +202,7 @@ function App() {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Stats
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> Match reports
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> Articles
                 </span>
               </div>
             </div>
