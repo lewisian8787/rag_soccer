@@ -38,7 +38,7 @@ function App() {
   const activeQueryRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
-  const { streamingText, loading, error, ask } = useAsk((r) => {
+  const { fullText, loading, error, ask } = useAsk((r) => {
     setHistory(prev => {
       const next = [...prev, { query: r.query, result: r }]
       setSelectedIndex(next.length - 1)
@@ -76,7 +76,7 @@ function App() {
     setConversationHistory([])
   }
 
-  const hasContent = history.length > 0 || loading || !!streamingText || !!error
+  const hasContent = history.length > 0 || loading || !!fullText || !!error
 
   return (
     <div className="flex h-screen overflow-hidden pitch-bg text-white">
@@ -137,13 +137,13 @@ function App() {
                 </div>
                 <AnswerCard
                   result={entry.result}
-                  streamingText=""
+                  fullText=""
                   loading={false}
                   error={null}
                 />
               </div>
             ))}
-            {(loading || streamingText) && (
+            {(loading || fullText) && (
               <div ref={activeQueryRef} className="flex flex-col gap-4">
                 <div className="flex justify-end">
                   <div className="bg-[#1e3d2a] border border-emerald-700/60 text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
@@ -152,7 +152,7 @@ function App() {
                 </div>
                 <AnswerCard
                   result={null}
-                  streamingText={streamingText}
+                  fullText={fullText}
                   loading={loading}
                   error={error}
                 />

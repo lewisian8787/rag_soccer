@@ -17,7 +17,7 @@ export interface AskResult {
 
 export function useAsk(onResult?: (r: AskResult) => void) {
   const [result, setResult] = useState<AskResult | null>(null)
-  const [streamingText, setStreamingText] = useState<string>('')
+  const [fullText, setFullText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,7 +27,7 @@ export function useAsk(onResult?: (r: AskResult) => void) {
     history: ConversationTurn[] = []
   ) {
     setLoading(true)
-    setStreamingText('')
+    setFullText('')
     setResult(null)
     setError(null)
 
@@ -64,7 +64,6 @@ export function useAsk(onResult?: (r: AskResult) => void) {
             throw new Error(event.message ?? 'Stream error from server')
           } else if (event.type === 'token') {
             accumulatedAnswer += event.text
-            setStreamingText(accumulatedAnswer)
           } else if (event.type === 'done') {
             const r: AskResult = {
               answer: accumulatedAnswer,
@@ -81,8 +80,8 @@ export function useAsk(onResult?: (r: AskResult) => void) {
             if (r.retrieval_scores.length) console.log('Retrieval scores:', r.retrieval_scores)
             if (r.caveat) console.log('Caveat:', r.caveat)
             console.groupEnd()
+            setFullText(accumulatedAnswer)
             setResult(r)
-            setStreamingText('')
             onResult?.(r)
           }
         }
@@ -94,5 +93,5 @@ export function useAsk(onResult?: (r: AskResult) => void) {
     }
   }
 
-  return { result, streamingText, loading, error, ask }
+  return { result, fullText, loading, error, ask }
 }

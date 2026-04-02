@@ -3,7 +3,7 @@ import type { AskResult } from '../hooks/useAsk'
 
 interface Props {
   result: AskResult | null
-  streamingText: string
+  fullText: string
   loading: boolean
   error: string | null
 }
@@ -20,42 +20,35 @@ const CONFIDENCE_DOT = {
   low: 'bg-red-400',
 }
 
-// Advance this many characters per tick — tune for desired reading pace
 const CHARS_PER_TICK = 2
 const TICK_MS = 30
 
-export default function AnswerCard({ result, streamingText, loading, error }: Props) {
-  const [displayedText, setDisplayedText] = useState('')
-  const queueRef = useRef('')
+export default function AnswerCard({ result, fullText, loading, error }: Props) {
+  const [displayedLength, setDisplayedLength] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Feed incoming tokens into the queue — ignore empty string (sent when stream ends)
   useEffect(() => {
-    if (streamingText) queueRef.current = streamingText
-  }, [streamingText])
-
-  // Reset when a new query starts — detected by loading transitioning false → true
-  const prevLoadingRef = useRef(false)
-  useEffect(() => {
-    if (loading && !prevLoadingRef.current) {
-      setDisplayedText('')
-      queueRef.current = ''
+    // New answer arrived — reset and start animating
+    if (fullText) {
+      setDisplayedLength(0)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+      intervalRef.current = setInterval(() => {
+        setDisplayedLength(prev => {
+          if (prev >= fullText.length) {
+            clearInterval(intervalRef.current!)
+            return prev
+          }
+          return Math.min(prev + CHARS_PER_TICK, fullText.length)
+        })
+      }, TICK_MS)
     }
-    prevLoadingRef.current = loading
-  }, [loading])
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [fullText])
 
-  // Advance display by CHARS_PER_TICK characters every TICK_MS.
-  // Keeps running after loading ends so the animation fully drains the queue
-  // before the final result view is shown.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDisplayedText(prev => {
-        const target = queueRef.current
-        if (prev.length >= target.length) return prev
-        return target.slice(0, prev.length + CHARS_PER_TICK)
-      })
-    }, TICK_MS)
-    return () => clearInterval(interval)
-  }, [])
+  const displayedText = fullText.slice(0, displayedLength)
+  const isAnimating = fullText.length > 0 && displayedLength < fullText.length
 
   if (error) {
     return (
@@ -65,18 +58,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     )
   }
 
-  const isAnimating = displayedText.length < queueRef.current.length
-
-  console.log('[AnswerCard]', {
-    loading,
-    isAnimating,
-    displayed: displayedText.length,
-    queue: queueRef.current.length,
-    hasResult: !!result,
-    streamingText: streamingText.length,
-  })
-
-  if ((loading || isAnimating) && !displayedText) {
+  if (loading && !fullText) {
     return (
       <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-8 flex items-center gap-3">
         <span aria-hidden="true" className="text-2xl motion-safe:animate-bounce" style={{ animationDuration: '0.8s' }}>⚽</span>
@@ -85,7 +67,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     )
   }
 
-  if (loading || isAnimating) {
+  if (isAnimating) {
     return (
       <div aria-live="polite" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-6">
         <p className="text-white leading-relaxed whitespace-pre-wrap">
