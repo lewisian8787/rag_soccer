@@ -245,7 +245,7 @@ def embed_all(batch_size=7523):
                 })
 
             index.upsert(vectors=vectors)
-            print(f"  report {report_id}: {len(chunks)} chunks upserted")
+            print(f"  report {report_id} [{article_type}]: {len(chunks)} chunks upserted")
 
         except Exception as e:
             print(f"  [FAILED] report {report_id}: {e}")

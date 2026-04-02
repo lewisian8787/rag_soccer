@@ -21,6 +21,20 @@ CLASSIFIER_MODEL = "gpt-4o-mini"
 TOP_K = 20  # fetch more to compensate for deduplication
 MIN_SCORE = 0.45
 
+# --- Gender detection ---
+# Defaults to men's football unless the query explicitly mentions women's game.
+# Mirrors the keyword list used at ingestion time in embed_reports.py.
+
+WOMENS_KEYWORDS = ["women", "wsl", "ladies", "women's champions league", "lionesses", "wcl",
+                   "women's", "womens"]
+
+
+def detect_query_gender(query):
+    query_lower = query.lower()
+    if any(kw in query_lower for kw in WOMENS_KEYWORDS):
+        return "women"
+    return "men"
+
 
 # --- Step 1: Query normalisation ---
 # Expands abbreviations and nicknames to full proper names before anything else touches the query.
@@ -136,10 +150,14 @@ def fetch_stats_context(query: str, since_date: str = None) -> str:
                     "You are a football stats assistant. "
                     "Use the available tools to fetch data relevant to the user's question. "
                     "Call the most appropriate tool with the correct parameters extracted from the question. "
-                    "Always expand abbreviations and nicknames to full names before passing as parameters — "
-                    "e.g. 'DCL' → 'Calvert-Lewin', 'TAA' → 'Trent Alexander-Arnold', 'KDB' → 'De Bruyne', "
-                    "'Spurs' → 'Tottenham', 'Man United' → 'Manchester United', 'Man City' → 'Manchester City', "
-                    "'Wolves' → 'Wolverhampton', 'Villa' → 'Aston Villa', 'Leicester' → 'Leicester'."
+                    "When passing team names as parameters, use EXACTLY these names as stored in the database — "
+                    "do not expand or alter them: "
+                    "'Arsenal', 'Aston Villa', 'Bournemouth', 'Brentford', 'Brighton', 'Burnley', "
+                    "'Chelsea', 'Crystal Palace', 'Everton', 'Fulham', 'Leeds', 'Liverpool', "
+                    "'Manchester City', 'Manchester United', 'Newcastle', 'Nottingham Forest', "
+                    "'Sunderland', 'Tottenham', 'West Ham', 'Wolves'. "
+                    "For player names, expand abbreviations and nicknames — "
+                    "e.g. 'DCL' → 'Calvert-Lewin', 'TAA' → 'Trent Alexander-Arnold', 'KDB' → 'De Bruyne'."
                     + date_instruction
                 )
             },
@@ -172,10 +190,9 @@ def fetch_stats_context(query: str, since_date: str = None) -> str:
 
 # --- Step 3b: RAG branch ---
 # Embeds the query and retrieves the most relevant match report chunks from Pinecone.
-# Tries the current season first, falls back to the previous season if empty.
+# Retrieves current-season chunks only — no fallback to older seasons.
 
 CURRENT_SEASON_DATE = "2025-08-01"   # start of 2025/26 season
-FALLBACK_SEASON_DATE = "2024-08-01"  # start of 2024/25 season — fallback if current season empty
 
 def get_embedding(text):
     response = openai_client.embeddings.create(
@@ -218,14 +235,11 @@ def retrieve_match_report_chunks(query, from_date=None, gender=None):
     if from_date is not None:
         return _query_pinecone(from_date), False
 
-    # Default: try current season first
+    # Default: current season only — no fallback to older seasons.
+    # Falling back previously caused stale data (e.g. players who had
+    # transferred being recommended as current squad members).
     chunks = _query_pinecone(CURRENT_SEASON_DATE)
-    if chunks:
-        return chunks, False
-
-    # Fall back to previous season and flag it
-    chunks = _query_pinecone(FALLBACK_SEASON_DATE)
-    return chunks, bool(chunks)
+    return chunks, False
 
 
 # --- Step 4: Assemble context for the final LLM call ---
@@ -275,6 +289,12 @@ You are given two types of context:
 Use both sources where available. Structured stats take priority for factual claims.
 Match reports provide tactical and narrative context.
 
+Data freshness rules:
+- Today's date is {today}. The structured stats DB only contains the current season ({current_season}).
+- When discussing current squads, form, or "best player" questions, ONLY name players who appear in the STRUCTURED STATS for this season. If a player is mentioned in match reports but absent from structured stats, they may have transferred and must not be presented as a current squad member.
+- NEVER mix men's and women's football data. If the question is about a men's team, ignore any match reports or stats from women's competitions (WSL, Women's Champions League, etc.) and vice versa. Treat them as entirely separate teams.
+- Each match report excerpt includes a publication date — ignore excerpts that are clearly from a different season to the one being discussed.
+
 Guidelines:
 - Base your answer only on the provided context — do not use outside knowledge
 - If the context doesn't contain enough information, say so
@@ -294,7 +314,7 @@ Output your response in EXACTLY this format — answer text first, then the deli
 
 [Your answer here as plain prose]
 <<<META>>>
-{"confidence": "high|medium|low", "sources": [{"title": "...", "published_at": "YYYY-MM-DD"}], "caveat": "..." or null}
+{{"confidence": "high|medium|low", "sources": [{{"title": "...", "published_at": "YYYY-MM-DD"}}], "caveat": "..." or null}}
 
 Rules for the metadata:
 - sources should only include match reports you actually drew from
@@ -319,7 +339,11 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
 
     user_message = _build_user_message(query, chunks, stats_context, used_fallback)
 
-    messages = [{"role": "system", "content": ANSWER_SYSTEM_PROMPT}]
+    system_prompt = ANSWER_SYSTEM_PROMPT.format(
+        today=datetime.now().strftime("%Y-%m-%d"),
+        current_season="2025/26",
+    )
+    messages = [{"role": "system", "content": system_prompt}]
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
@@ -405,6 +429,10 @@ def run_pipeline(query, from_date=None, gender=None, history=None):
 
         # Step 1: Normalise abbreviations and nicknames
         query = rewrite_query(query, history=history)
+
+        # Step 1b: Default to men's football unless the query mentions women's game
+        if gender is None:
+            gender = detect_query_gender(query)
 
         # Step 2: Classify the query — returns a set containing 'rag', 'stats', or both
         query_types = classify_query(query)
