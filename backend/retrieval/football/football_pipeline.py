@@ -323,6 +323,9 @@ Output your response in EXACTLY this format — answer text first, then the deli
 {{"confidence": "high|medium|low", "sources": [{{"title": "...", "published_at": "YYYY-MM-DD"}}], "caveat": "..." or null}}
 
 Rules for the metadata:
+- confidence should be "high" when the answer is based solely on structured stats and data was returned — stats are factual and precise
+- confidence should be "medium" when combining stats and match reports, or when match reports are the only source but chunks are clearly relevant
+- confidence should be "low" only when data is missing, ambiguous, or the context is insufficient to answer confidently
 - sources should only include match reports you actually drew from
 - caveat should be null if there are no limitations worth flagging
 """
