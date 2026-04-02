@@ -126,18 +126,15 @@ class TestRetrieveMocked:
         assert chunks[0]["score"] == 0.90  # Highest score kept
         assert chunks[0]["metadata"]["chunk_text"] == "First"
 
-    def test_fallback_behavior_when_current_season_empty(self, mock_openai, mock_pinecone):
-        # First call (current season) returns empty, second (fallback) returns data
-        mock_pinecone.query.side_effect = [
-            {"matches": []},
-            {"matches": [{"score": 0.75, "metadata": {"title": "Last Season", "published_at": 1700000000, "chunk_text": "Old"}}]},
-        ]
+    def test_no_fallback_when_current_season_empty(self, mock_openai, mock_pinecone):
+        # When current season returns empty, return empty — no fallback to older seasons
+        mock_pinecone.query.return_value = {"matches": []}
 
         chunks, used_fallback = retrieve_match_report_chunks("test query")
 
-        assert len(chunks) == 1
-        assert used_fallback is True
-        assert mock_pinecone.query.call_count == 2
+        assert len(chunks) == 0
+        assert used_fallback is False
+        assert mock_pinecone.query.call_count == 1  # No fallback attempt
 
     def test_no_fallback_when_explicit_date_provided(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {"matches": []}

@@ -15,6 +15,7 @@ from football.football_pipeline import (
     fetch_stats_context,
     generate_response,
     rewrite_query,
+    detect_query_gender,
     MIN_SCORE,
 )
 
@@ -118,17 +119,16 @@ class TestRetrieve:
         titles = [c["metadata"]["title"] for c in chunks]
         assert titles == ["Same Match", "Different Match"]
 
-    def test_fallback_to_previous_season(self, mock_openai, mock_pinecone):
-        # First call returns empty (current season), second returns results (fallback)
-        mock_pinecone.query.side_effect = [
-            {"matches": []},  # Current season empty
-            {"matches": [{"score": 0.85, "metadata": {"title": "Old Match", "published_at": 1700000000, "chunk_text": "Old"}}]},
-        ]
+    def test_no_fallback_when_current_season_empty(self, mock_openai, mock_pinecone):
+        # When current season returns no results, return empty — no fallback to older seasons
+        mock_pinecone.query.return_value = {"matches": []}
 
         chunks, used_fallback = retrieve_match_report_chunks("test query")
 
-        assert len(chunks) == 1
-        assert used_fallback is True
+        assert len(chunks) == 0
+        assert used_fallback is False
+        # Should only query once (current season), not fall back
+        assert mock_pinecone.query.call_count == 1
 
     def test_no_fallback_when_current_season_has_data(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {
@@ -156,6 +156,28 @@ class TestRetrieve:
 
         call_kwargs = mock_pinecone.query.call_args.kwargs
         assert call_kwargs["filter"]["gender"] == {"$eq": "women"}
+
+
+class TestDetectQueryGender:
+    """Tests for auto-detecting men's vs women's football from the query."""
+
+    def test_defaults_to_men(self):
+        assert detect_query_gender("How did Arsenal play?") == "men"
+
+    def test_detects_women_keyword(self):
+        assert detect_query_gender("How did the Arsenal women play?") == "women"
+
+    def test_detects_wsl(self):
+        assert detect_query_gender("WSL standings this season") == "women"
+
+    def test_detects_womens_champions_league(self):
+        assert detect_query_gender("Women's Champions League results") == "women"
+
+    def test_detects_lionesses(self):
+        assert detect_query_gender("How are the Lionesses doing?") == "women"
+
+    def test_case_insensitive(self):
+        assert detect_query_gender("WOMEN'S football results") == "women"
 
 
 class TestFetchStatsContext:

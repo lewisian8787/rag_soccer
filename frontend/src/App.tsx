@@ -35,7 +35,8 @@ function App() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [currentQuery, setCurrentQuery] = useState('')
   const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const activeQueryRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   const { streamingText, loading, error, ask } = useAsk((r) => {
     setHistory(prev => {
@@ -55,8 +56,12 @@ function App() {
   })
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [history, streamingText])
+    if (loading) {
+      requestAnimationFrame(() => {
+        activeQueryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
+  }, [loading])
 
   function handleAsk(query: string) {
     setSelectedIndex(null)
@@ -120,7 +125,7 @@ function App() {
         </header>
 
         {/* Scrollable conversation area */}
-        <div className="flex-1 overflow-y-auto flex flex-col items-center px-4 py-2">
+        <div ref={scrollAreaRef} className="flex-1 overflow-y-auto flex flex-col items-center px-4 py-2">
           {hasContent && (
             <div className="w-full max-w-2xl mb-4 flex flex-col gap-4">
             {history.map((entry, i) => (
@@ -139,7 +144,7 @@ function App() {
               </div>
             ))}
             {(loading || streamingText) && (
-              <div className="flex flex-col gap-4">
+              <div ref={activeQueryRef} className="flex flex-col gap-4">
                 <div className="flex justify-end">
                   <div className="bg-[#1e3d2a] border border-emerald-700/60 text-white text-sm px-5 py-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
                     {currentQuery}
@@ -153,7 +158,7 @@ function App() {
                 />
               </div>
             )}
-            <div ref={bottomRef} />
+            <div />
             </div>
           )}
 
