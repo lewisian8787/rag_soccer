@@ -36,12 +36,14 @@ function App() {
   const [currentQuery, setCurrentQuery] = useState('')
   const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
   const [activeHistory, setActiveHistory] = useState<HistoryEntry[]>([])
+  const [responding, setResponding] = useState(false)
   const activeQueryRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   const { fullText, result, loading, error, ask, clearFullText } = useAsk()
 
   function handleAnimationComplete(r: AskResult) {
+    setResponding(false)
     clearFullText()
     const entry = { query: r.query, result: r }
     setActiveHistory(prev => [...prev, entry])
@@ -72,6 +74,7 @@ function App() {
   function handleAsk(query: string) {
     setSelectedIndex(null)
     setCurrentQuery(query)
+    setResponding(true)
     ask(query, mode, conversationHistory)
   }
 
@@ -182,7 +185,7 @@ function App() {
           {!hasContent && (
             <div className="w-full max-w-2xl">
               <div className="mb-8">
-                <InputBar onAsk={handleAsk} onNewConversation={handleNewConversation} loading={loading} hasContent={hasContent} mode={mode} />
+                <InputBar onAsk={handleAsk} onNewConversation={handleNewConversation} loading={responding} hasContent={hasContent} mode={mode} />
               </div>
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-4">Try asking</p>
               <div className="flex flex-wrap gap-2">
@@ -218,7 +221,7 @@ function App() {
               </p>
             )}
             <div className="w-full max-w-2xl">
-              <InputBar onAsk={handleAsk} onNewConversation={handleNewConversation} loading={loading} hasContent={hasContent} mode={mode} />
+              <InputBar onAsk={handleAsk} onNewConversation={handleNewConversation} loading={responding} hasContent={hasContent} mode={mode} />
             </div>
           </div>
         )}
