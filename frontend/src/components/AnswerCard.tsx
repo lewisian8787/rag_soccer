@@ -28,9 +28,9 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
   const [displayedText, setDisplayedText] = useState('')
   const queueRef = useRef('')
 
-  // Feed incoming tokens into the queue
+  // Feed incoming tokens into the queue — ignore empty string (sent when stream ends)
   useEffect(() => {
-    queueRef.current = streamingText
+    if (streamingText) queueRef.current = streamingText
   }, [streamingText])
 
   // Reset only when a new query starts (loading becomes true with no text yet)
