@@ -16,6 +16,23 @@ def get_conn():
 # --  THIS FILE LISTS ALL POSSIBLE SQL QUERIES THAT WOULD BE NEEDED --
 # -- last updated march 29
 
+def get_player_team(player_name: str) -> dict | None:
+    """Get the team a player currently plays for, based on their most recent match."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT p.name, s.team
+                FROM api_player_match_stats s
+                JOIN api_players p ON p.id = s.player_id
+                JOIN api_matches m ON m.id = s.match_id
+                WHERE p.name ILIKE %s
+                ORDER BY m.date DESC
+                LIMIT 1
+            """, (f"%{player_name}%",))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+
 def get_player_season_totals(player_name: str) -> dict | None:
     with get_conn() as conn:
         with conn.cursor() as cur:

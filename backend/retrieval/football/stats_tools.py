@@ -1,4 +1,5 @@
 from football.query_stats import (
+    get_player_team,
     get_player_season_totals,
     get_player_goal_history,
     get_recent_player_form,
@@ -21,6 +22,23 @@ from football.query_stats import (
 # One definition per SQL function in query_stats.py.
 
 TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_player_team",
+            "description": "Get the team a player currently plays for, based on their most recent match.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "player_name": {
+                        "type": "string",
+                        "description": "The player's name e.g. 'Igor Thiago', 'Semenyo', 'Haaland'"
+                    }
+                },
+                "required": ["player_name"]
+            }
+        }
+    },
     {
         "type": "function",
         "function": {
@@ -323,6 +341,7 @@ TOOLS = [
 # FINAL TOOL MAP
 
 FUNCTION_MAP = {
+    "get_player_team": get_player_team,
     "get_player_season_totals": get_player_season_totals,
     "get_team_top_scorers": get_team_top_scorers,
     "get_player_goal_history": get_player_goal_history,
