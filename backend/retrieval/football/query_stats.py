@@ -33,10 +33,16 @@ def get_player_team(player_name: str) -> dict | None:
             return dict(row) if row else None
 
 
-def get_player_season_totals(player_name: str) -> dict | None:
+def get_player_season_totals(player_name: str, since_date: str = None) -> dict | None:
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
+            conditions = ["p.name ILIKE %s"]
+            params = [f"%{player_name}%"]
+            if since_date:
+                conditions.append("m.date >= %s")
+                params.append(since_date)
+            where = " AND ".join(conditions)
+            cur.execute(f"""
                 SELECT
                     p.name,
                     COUNT(*) AS appearances,
@@ -47,9 +53,10 @@ def get_player_season_totals(player_name: str) -> dict | None:
                     ROUND(AVG(s.rating)::numeric, 2) AS avg_rating
                 FROM api_player_match_stats s
                 JOIN api_players p ON p.id = s.player_id
-                WHERE p.name ILIKE %s
+                JOIN api_matches m ON m.id = s.match_id
+                WHERE {where}
                 GROUP BY p.name
-            """, (f"%{player_name}%",))
+            """, params)
             row = cur.fetchone()
             return dict(row) if row else None
 

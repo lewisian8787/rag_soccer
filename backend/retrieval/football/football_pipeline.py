@@ -18,7 +18,7 @@ index = pc.Index(os.getenv("PINECONE_INDEX_NAME"))
 EMBEDDING_MODEL = "text-embedding-3-small"
 LLM_MODEL = "gpt-4o"
 CLASSIFIER_MODEL = "gpt-4o-mini"
-TOP_K = 20  # fetch more to compensate for deduplication
+TOP_K = 25  # fetch more to compensate for deduplication
 MIN_SCORE = 0.45
 
 # --- Gender detection ---
@@ -316,7 +316,7 @@ Guidelines:
 - Avoid pointless statements or repeating yourself
 - If you are presenting a list, number each entry
 - Answer in first person as an analyst — never reference your sources, the match reports, the context, or how you derived the answer. Just answer directly as if you know it
-- Never say "the match reports suggest", "the narrative indicates", "based on available context", "the data shows", or any similar meta-commentary about sources
+- Never say "the match reports suggest", "the narrative indicates", "based on available context", "the data shows", "based on structured stats", "based on the stats", "according to the data", or any similar meta-commentary about sources
 
 Output only your answer as plain prose. Do not include any metadata, delimiters, or JSON.
 """
@@ -333,7 +333,7 @@ Scoring guide:
 - 2-3: Weak retrieval, thin context, or the answer had to hedge significantly
 - 1: No useful data was available
 
-Also flag a caveat if there is a meaningful limitation worth telling the user (e.g. data only covers part of the season, conflicting information, question is about a player not in current stats). Return null if there is nothing worth flagging.
+Also flag a caveat if there is a meaningful limitation worth telling the user (e.g. conflicting information, question is about a player not in current stats, the answer had to hedge significantly). Do NOT flag data coverage limitations — the retrieval window is handled by the system and you cannot infer it from the chunks. Return null if there is nothing genuinely worth flagging.
 
 Be strict — only give high scores when the data clearly supports the answer."""
 
@@ -376,7 +376,7 @@ def _assess_confidence(answer: str, query: str, chunks: list, stats_context: str
                     "type": "object",
                     "properties": {
                         "confidence": {"type": "integer"},
-                        "caveat": {"type": "string"},
+                        "caveat": {"type": ["string", "null"]},
                     },
                     "required": ["confidence", "caveat"],
                     "additionalProperties": False,
@@ -388,7 +388,7 @@ def _assess_confidence(answer: str, query: str, chunks: list, stats_context: str
 
     data = json.loads(response.choices[0].message.content)
     confidence = max(1, min(10, int(data["confidence"])))
-    caveat = data["caveat"].strip() or None
+    caveat = data["caveat"].strip() if data["caveat"] else None
     return confidence, caveat
 
 

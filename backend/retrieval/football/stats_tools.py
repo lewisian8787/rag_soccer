@@ -43,13 +43,17 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_player_season_totals",
-            "description": "Get a player's total goals, assists, yellow cards, red cards, average rating and appearances for the season.",
+            "description": "Get a named player's total goals, assists, yellow cards, red cards, average rating and appearances. Only use this when the question names a specific player — e.g. 'how many goals has Salah scored?'. For open-ended 'who' questions (e.g. 'who has been clinical?', 'who is scoring?'), use get_top_scorers or get_top_rated_players instead.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "player_name": {
                         "type": "string",
                         "description": "The player's name e.g. 'Salah', 'Haaland', 'Saka'"
+                    },
+                    "since_date": {
+                        "type": "string",
+                        "description": "Only include matches from this date onwards. Format: YYYY-MM-DD"
                     }
                 },
                 "required": ["player_name"]
@@ -163,7 +167,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_top_scorers",
-            "description": "Get the top goalscorers in the Premier League this season, ranked by total goals. Use for questions about top scorers league-wide, in-form strikers, or who has been scoring recently. Use since_date to filter to recent form (e.g. last 30 days).",
+            "description": "Get the top goalscorers in the Premier League this season, ranked by total goals. Use this for any open-ended question about who has been scoring or clinical up front — e.g. 'who has been clinical?', 'who is on fire?', 'best strikers lately?'. Do NOT call get_player_season_totals for a named player when the question is asking 'who'. Use since_date to filter to recent form (e.g. last 30 days).",
             "parameters": {
                 "type": "object",
                 "properties": {
