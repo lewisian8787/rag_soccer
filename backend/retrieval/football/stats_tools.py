@@ -6,6 +6,7 @@ from football.query_stats import (
     get_team_stats_by_venue,
     get_team_defensive_stats,
     get_team_attacking_stats,
+    get_team_top_scorers,
     get_league_defensive_ranking,
     get_league_attacking_ranking,
     get_match_scorers,
@@ -122,8 +123,29 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_team_top_scorers",
+            "description": "Get the top goalscorers for a specific team this season, ranked by goals. Use this when the question asks who has scored the most for a particular team — e.g. 'who is Leeds top scorer?' or 'who has been scoring for Everton?'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "team_name": {
+                        "type": "string",
+                        "description": "The team's name e.g. 'Leeds', 'Everton', 'Wolves'"
+                    },
+                    "since_date": {
+                        "type": "string",
+                        "description": "Only include matches from this date onwards. Format: YYYY-MM-DD"
+                    }
+                },
+                "required": ["team_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_top_scorers",
-            "description": "Get the top goalscorers in the Premier League this season, ranked by total goals. Use for questions about top scorers, in-form strikers, or who has been scoring recently. Use since_date to filter to recent form (e.g. last 30 days).",
+            "description": "Get the top goalscorers in the Premier League this season, ranked by total goals. Use for questions about top scorers league-wide, in-form strikers, or who has been scoring recently. Use since_date to filter to recent form (e.g. last 30 days).",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -302,6 +324,7 @@ TOOLS = [
 
 FUNCTION_MAP = {
     "get_player_season_totals": get_player_season_totals,
+    "get_team_top_scorers": get_team_top_scorers,
     "get_player_goal_history": get_player_goal_history,
     "get_recent_player_form": get_recent_player_form,
     "get_team_recent_results": get_team_recent_results,

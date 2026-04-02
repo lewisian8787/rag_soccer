@@ -170,6 +170,35 @@ def get_match_scorers(home_team: str, away_team: str) -> list[dict]:
             return [dict(r) for r in cur.fetchall()]
 
 
+def get_team_top_scorers(team_name: str, limit: int = 10, since_date: str = None) -> list[dict]:
+    """Top scorers for a specific team, ranked by goals."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            conditions = ["(m.home_team ILIKE %s OR m.away_team ILIKE %s)"]
+            params = [f"%{team_name}%", f"%{team_name}%"]
+            if since_date:
+                conditions.append("m.date >= %s")
+                params.append(since_date)
+            where = " AND ".join(conditions)
+            params.append(limit)
+            cur.execute(f"""
+                SELECT
+                    p.name,
+                    SUM(s.goals) AS goals,
+                    SUM(s.assists) AS assists,
+                    COUNT(*) AS appearances
+                FROM api_player_match_stats s
+                JOIN api_players p ON p.id = s.player_id
+                JOIN api_matches m ON m.id = s.match_id
+                WHERE {where}
+                GROUP BY p.name
+                HAVING SUM(s.goals) > 0
+                ORDER BY goals DESC
+                LIMIT %s
+            """, params)
+            return [dict(r) for r in cur.fetchall()]
+
+
 def get_top_scorers(limit: int = 50, since_date: str = None) -> list[dict]:
     with get_conn() as conn:
         with conn.cursor() as cur:
