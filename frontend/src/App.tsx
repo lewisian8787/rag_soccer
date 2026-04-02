@@ -78,6 +78,13 @@ function App() {
     setConversationHistory([])
   }
 
+  function handleNewConversation() {
+    setHistory([])
+    setConversationHistory([])
+    setSelectedIndex(null)
+    clearFullText()
+  }
+
   const hasContent = history.length > 0 || loading || !!fullText || !!error
 
   return (
@@ -168,7 +175,7 @@ function App() {
           {!hasContent && (
             <div className="w-full max-w-2xl">
               <div className="mb-8">
-                <InputBar onAsk={handleAsk} loading={loading} mode={mode} />
+                <InputBar onAsk={handleAsk} onNewConversation={handleNewConversation} loading={loading} hasContent={hasContent} mode={mode} />
               </div>
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-4">Try asking</p>
               <div className="flex flex-wrap gap-2">
@@ -204,7 +211,7 @@ function App() {
               </p>
             )}
             <div className="w-full max-w-2xl">
-              <InputBar onAsk={handleAsk} loading={loading} mode={mode} />
+              <InputBar onAsk={handleAsk} onNewConversation={handleNewConversation} loading={loading} hasContent={hasContent} mode={mode} />
             </div>
           </div>
         )}

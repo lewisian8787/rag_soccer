@@ -2,11 +2,13 @@ import { useState } from 'react'
 
 interface Props {
   onAsk: (query: string) => void
+  onNewConversation: () => void
   loading: boolean
+  hasContent: boolean
   mode?: 'football' | 'fpl'
 }
 
-export default function InputBar({ onAsk, loading, mode = 'football' }: Props) {
+export default function InputBar({ onAsk, onNewConversation, loading, hasContent, mode = 'football' }: Props) {
   const [input, setInput] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
@@ -22,6 +24,20 @@ export default function InputBar({ onAsk, loading, mode = 'football' }: Props) {
       <label htmlFor="question-input" className="sr-only">
         Ask a question
       </label>
+      {hasContent && (
+        <button
+          type="button"
+          onClick={onNewConversation}
+          disabled={loading}
+          aria-label="New conversation"
+          title="New conversation"
+          className="shrink-0 bg-[#162b1f] border border-emerald-700/60 hover:border-emerald-400 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed px-3.5 py-3.5 rounded-xl transition-colors"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </button>
+      )}
       <input
         id="question-input"
         type="text"
