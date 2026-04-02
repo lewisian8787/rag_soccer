@@ -320,46 +320,84 @@ Guidelines:
 Output only your answer as plain prose. Do not include any metadata, delimiters, or JSON.
 """
 
-def _confidence_score(chunks, stats_context) -> int:
-    """Returns a 1-10 confidence score based on retrieval quality and stats availability."""
+CONFIDENCE_ASSESSMENT_PROMPT = """You are a quality assessor for a football analytics chatbot.
+
+You will be given a question, a description of the data that was available, and the answer that was generated.
+Your job is to assess how confident we should be in the answer on a scale of 1-10.
+
+Scoring guide:
+- 10: Answer is based entirely on precise structured stats — fully factual, no ambiguity
+- 7-9: Strong match report evidence directly relevant to the question, or stats + supporting narrative
+- 4-6: Some relevant context but incomplete, or match reports that are tangentially related
+- 2-3: Weak retrieval, thin context, or the answer had to hedge significantly
+- 1: No useful data was available
+
+Also flag a caveat if there is a meaningful limitation worth telling the user (e.g. data only covers part of the season, conflicting information, question is about a player not in current stats). Return null if there is nothing worth flagging.
+
+Be strict — only give high scores when the data clearly supports the answer."""
+
+
+def _assess_confidence(answer: str, query: str, chunks: list, stats_context: str) -> tuple[int, str | None]:
+    """Makes a mini LLM call to assess confidence and caveat after the answer has been streamed."""
     has_stats = bool(stats_context)
+    has_chunks = bool(chunks)
 
-    if not chunks and not has_stats:
-        return 1
-
-    if not chunks:
-        # Stats only — factual and precise
-        return 10
-
-    avg_score = sum(c["score"] for c in chunks) / len(chunks)
-    # Map avg Pinecone score [0.45, 1.0] → [2, 8]
-    chunk_score = 2 + (avg_score - 0.45) / (1.0 - 0.45) * 6
-    chunk_score = round(min(max(chunk_score, 2), 8))
-
+    context_summary = []
     if has_stats:
-        chunk_score = min(chunk_score + 2, 10)
+        context_summary.append("Structured stats data was available.")
+    if has_chunks:
+        avg_score = sum(c["score"] for c in chunks) / len(chunks)
+        context_summary.append(
+            f"{len(chunks)} match report chunks retrieved (avg relevance score: {avg_score:.2f})."
+        )
+    if not context_summary:
+        context_summary.append("No data was available.")
 
-    return chunk_score
+    user_message = (
+        f"Question: {query}\n\n"
+        f"Data available: {' '.join(context_summary)}\n\n"
+        f"Answer: {answer}"
+    )
+
+    response = openai_client.chat.completions.create(
+        model=CLASSIFIER_MODEL,
+        messages=[
+            {"role": "system", "content": CONFIDENCE_ASSESSMENT_PROMPT},
+            {"role": "user", "content": user_message},
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "confidence_assessment",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "confidence": {"type": "integer"},
+                        "caveat": {"type": "string"},
+                    },
+                    "required": ["confidence", "caveat"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        temperature=0,
+    )
+
+    data = json.loads(response.choices[0].message.content)
+    confidence = max(1, min(10, int(data["confidence"])))
+    caveat = data["caveat"].strip() or None
+    return confidence, caveat
 
 
-def _build_metadata(chunks, stats_context, used_fallback):
-    """Derives confidence, sources, and caveat from retrieval results — no LLM needed."""
-    confidence = _confidence_score(chunks, stats_context)
-
-    sources = [
+def _build_sources(chunks):
+    return [
         {
             "title": c["metadata"].get("title", ""),
             "published_at": datetime.fromtimestamp(c["metadata"].get("published_at", 0)).strftime("%Y-%m-%d"),
         }
         for c in chunks
     ]
-
-    caveat = (
-        "No match reports were found for the current season. Context is from the previous season (2024/25)."
-        if used_fallback else None
-    )
-
-    return confidence, sources, caveat
 
 
 def generate_response(query, chunks, stats_context="", used_fallback=False, query_types=None, retrieval_scores=None, history=None):
@@ -397,13 +435,21 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
         stream=True,
     )
 
+    full_answer = ""
     for chunk in response:
         delta = chunk.choices[0].delta.content or ""
         if not delta:
             continue
+        full_answer += delta
         yield f"data: {json.dumps({'type': 'token', 'text': delta})}\n\n"
 
-    confidence, sources, caveat = _build_metadata(chunks, stats_context, used_fallback)
+    confidence, llm_caveat = _assess_confidence(full_answer, query, chunks, stats_context)
+    fallback_caveat = (
+        "No match reports were found for the current season. Context is from the previous season (2024/25)."
+        if used_fallback else None
+    )
+    caveat = fallback_caveat or llm_caveat
+    sources = _build_sources(chunks)
     done_event = json.dumps({
         "type": "done",
         "confidence": confidence,
