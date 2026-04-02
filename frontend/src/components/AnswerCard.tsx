@@ -20,29 +20,37 @@ const CONFIDENCE_DOT = {
   low: 'bg-red-400',
 }
 
-const RENDER_INTERVAL_MS = 50
+// Advance this many characters per tick — tune for desired reading pace
+const CHARS_PER_TICK = 8
+const TICK_MS = 30
 
 export default function AnswerCard({ result, streamingText, loading, error }: Props) {
   const [displayedText, setDisplayedText] = useState('')
-  const pendingRef = useRef('')
+  const queueRef = useRef('')
 
-  // Accumulate incoming tokens in a ref, flush to display every RENDER_INTERVAL_MS.
-  // This gives a smooth readable pace without the queue-buildup of char-by-char animation.
+  // Feed incoming tokens into the queue
   useEffect(() => {
-    pendingRef.current = streamingText
+    queueRef.current = streamingText
   }, [streamingText])
 
+  // Reset on new query
   useEffect(() => {
     if (!loading) {
       setDisplayedText('')
-      pendingRef.current = ''
-      return
+      queueRef.current = ''
     }
+  }, [loading])
+
+  // Advance display by CHARS_PER_TICK characters every TICK_MS regardless of stream speed
+  useEffect(() => {
+    if (!loading) return
     const interval = setInterval(() => {
-      if (pendingRef.current !== displayedText) {
-        setDisplayedText(pendingRef.current)
-      }
-    }, RENDER_INTERVAL_MS)
+      setDisplayedText(prev => {
+        const target = queueRef.current
+        if (prev.length >= target.length) return prev
+        return target.slice(0, prev.length + CHARS_PER_TICK)
+      })
+    }, TICK_MS)
     return () => clearInterval(interval)
   }, [loading])
 
@@ -54,7 +62,7 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     )
   }
 
-  if (loading && !streamingText) {
+  if (loading && !displayedText) {
     return (
       <div aria-live="polite" aria-label="Analysing" className="rounded-2xl border border-emerald-700/60 bg-[#162b1f] shadow-[0_2px_24px_rgba(0,0,0,0.5)] px-7 py-8 flex items-center gap-3">
         <span aria-hidden="true" className="text-2xl motion-safe:animate-bounce" style={{ animationDuration: '0.8s' }}>⚽</span>
