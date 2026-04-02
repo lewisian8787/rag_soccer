@@ -33,12 +33,14 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
     if (streamingText) queueRef.current = streamingText
   }, [streamingText])
 
-  // Reset only when a new query starts (loading becomes true with no text yet)
+  // Reset when a new query starts — detected by loading transitioning false → true
+  const prevLoadingRef = useRef(false)
   useEffect(() => {
-    if (loading && !streamingText) {
+    if (loading && !prevLoadingRef.current) {
       setDisplayedText('')
       queueRef.current = ''
     }
+    prevLoadingRef.current = loading
   }, [loading])
 
   // Advance display by CHARS_PER_TICK characters every TICK_MS.
@@ -64,6 +66,15 @@ export default function AnswerCard({ result, streamingText, loading, error }: Pr
   }
 
   const isAnimating = displayedText.length < queueRef.current.length
+
+  console.log('[AnswerCard]', {
+    loading,
+    isAnimating,
+    displayed: displayedText.length,
+    queue: queueRef.current.length,
+    hasResult: !!result,
+    streamingText: streamingText.length,
+  })
 
   if ((loading || isAnimating) && !displayedText) {
     return (
