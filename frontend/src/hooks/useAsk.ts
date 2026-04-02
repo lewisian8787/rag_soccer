@@ -92,5 +92,10 @@ export function useAsk() {
     }
   }
 
-  return { result, fullText, loading, error, ask }
+  function clearFullText() {
+    setFullText('')
+    setResult(null)
+  }
+
+  return { result, fullText, loading, error, ask, clearFullText }
 }

@@ -38,9 +38,10 @@ function App() {
   const activeQueryRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
-  const { fullText, result, loading, error, ask } = useAsk()
+  const { fullText, result, loading, error, ask, clearFullText } = useAsk()
 
   function handleAnimationComplete(r: AskResult) {
+    clearFullText()
     setHistory(prev => {
       const next = [...prev, { query: r.query, result: r }]
       setSelectedIndex(next.length - 1)
