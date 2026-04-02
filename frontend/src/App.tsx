@@ -192,17 +192,17 @@ function App() {
                     onClick={() => handleAsk(label)}
                     className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#162b1f] border border-emerald-700/60 hover:border-emerald-400 text-gray-300 hover:text-white text-sm transition-colors shadow-[0_1px_8px_rgba(0,0,0,0.3)]"
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${type === 'stats' ? 'bg-emerald-400' : 'bg-teal-400'}`} />
+                    <span className="flex-shrink-0 text-xs">{type === 'stats' ? '📊' : '📰'}</span>
                     {label}
                   </button>
                 ))}
               </div>
               <div className="flex items-center gap-4 mt-4">
                 <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Stats
+                  <span>📊</span> Stats
                 </span>
                 <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400" /> Match reports
+                  <span>📰</span> Match reports
                 </span>
               </div>
             </div>

@@ -40,8 +40,8 @@ export default function HistorySidebar({ history, selectedIndex, onSelect }: Pro
         <>
           <div className="px-4 py-5 border-b border-emerald-800 flex items-center justify-between shrink-0">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Session history</p>
-              <p className="text-xs text-gray-600 mt-1">Resets on page refresh</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Conversations</p>
+              <p className="text-xs text-gray-600 mt-1">This session only</p>
             </div>
             <button
               onClick={() => setCollapsed(true)}
