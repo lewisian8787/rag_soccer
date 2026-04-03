@@ -1,22 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <!-- Ball base -->
   <circle cx="50" cy="50" r="47" fill="white" stroke="#222" stroke-width="3"/>
-
-  <!-- Central pentagon -->
-  <polygon points="50,28 64,38 59,55 41,55 36,38" fill="#111"/>
-
-  <!-- Top left patch -->
-  <polygon points="50,28 36,38 22,30 24,14 38,9" fill="#111"/>
-
-  <!-- Top right patch -->
-  <polygon points="50,28 64,38 78,30 76,14 62,9" fill="#111"/>
-
-  <!-- Bottom left patch -->
-  <polygon points="41,55 36,38 22,30 12,44 20,62" fill="#111"/>
-
-  <!-- Bottom right patch -->
-  <polygon points="59,55 64,38 78,30 88,44 80,62" fill="#111"/>
-
-  <!-- Bottom patch -->
-  <polygon points="41,55 59,55 65,70 50,80 35,70" fill="#111"/>
+  <!-- centre pentagon -->
+  <path d="M50 32 L64 42 L59 58 L41 58 L36 42 Z" fill="#111"/>
+  <!-- top -->
+  <path d="M50 32 L50 18" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+  <!-- top-right -->
+  <path d="M64 42 L76 34" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+  <!-- bottom-right -->
+  <path d="M59 58 L68 70" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+  <!-- bottom-left -->
+  <path d="M41 58 L32 70" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+  <!-- top-left -->
+  <path d="M36 42 L24 34" stroke="#111" stroke-width="5" stroke-linecap="round"/>
 </svg>
