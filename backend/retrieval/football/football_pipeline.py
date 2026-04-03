@@ -541,6 +541,7 @@ def run_pipeline(query, from_date=None, gender=None, history=None):
             chunks, used_fallback = retrieve_match_report_chunks(query, from_date=from_date, gender=gender)
             if chunks and all(c["score"] < 0.50 for c in chunks):
                 chunks = []
+            chunks = chunks[:8]
 
         retrieval_scores = [round(c["score"], 4) for c in chunks]
 
