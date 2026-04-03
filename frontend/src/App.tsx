@@ -37,6 +37,7 @@ function App() {
   const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([])
   const [activeHistory, setActiveHistory] = useState<HistoryEntry[]>([])
   const [responding, setResponding] = useState(false)
+  const [showFplRejected, setShowFplRejected] = useState(false)
   const activeQueryRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
@@ -113,6 +114,11 @@ function App() {
   }
 
   function handleModeChange(next: Mode) {
+    if (next === 'fpl') {
+      setShowFplRejected(true)
+      setTimeout(() => setShowFplRejected(false), 2000)
+      return
+    }
     setMode(next)
     setActiveIndex(null)
     setHistory([[]])
@@ -263,6 +269,22 @@ function App() {
       </main>
 
       <StandingsTable onTeamClick={handleAsk} disabled={loading} />
+
+      {showFplRejected && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center cursor-pointer"
+          style={{ backgroundColor: '#ff003c' }}
+          onClick={() => setShowFplRejected(false)}
+        >
+          <p className="fpl-overlay-text text-white font-black uppercase tracking-tighter"
+            style={{ fontSize: 'clamp(5rem, 20vw, 14rem)', lineHeight: 1 }}>
+            NOT YET.
+          </p>
+          <p className="fpl-overlay-text text-white/70 font-semibold uppercase tracking-widest mt-6 text-lg">
+            we're working on it. probably.
+          </p>
+        </div>
+      )}
 
     </div>
   )
