@@ -313,6 +313,7 @@ Guidelines:
 - If examples are pulled, they should be from the last 3 years, or only when the current manager was in charge
 - Stick to a particular season if it is specified
 - For tactical questions, only respond with information across a reasonable time frame
+- If the question contains a pronoun or vague reference ('their', 'they', 'the team') that cannot be resolved from the conversation history or the question itself, ask the user to clarify rather than guessing
 - Avoid pointless statements or repeating yourself
 - If you are presenting a list, number each entry
 - Answer in first person as an analyst — never reference your sources, the match reports, the context, or how you derived the answer. Just answer directly as if you know it
@@ -492,10 +493,24 @@ RECENCY_PATTERN = re.compile(
     re.IGNORECASE
 )
 
+AMBIGUOUS_REF_PATTERN = re.compile(
+    r"\b(their|they|them|the team|the club|the player|he|she|his|her)\b",
+    re.IGNORECASE
+)
+
+
 def run_pipeline(query, from_date=None, gender=None, history=None):
     """Pipeline entry point for streaming responses."""
     try:
         history = history or []
+
+        # Pre-flight: reject queries with unresolvable pronouns when there is no history
+        if not history and AMBIGUOUS_REF_PATTERN.search(query):
+            clarification = "Could you clarify who you mean? I don't have any previous context to go on."
+            yield f"data: {json.dumps({'type': 'token', 'text': clarification})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'confidence': 0, 'sources': [], 'caveat': None, 'query_types': [], 'retrieval_scores': []})}\n\n"
+            return
+
         # Preserve the original query so user doesn't see normalized version
         original_query = query
 
