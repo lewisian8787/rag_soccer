@@ -18,8 +18,8 @@ index = pc.Index(os.getenv("PINECONE_INDEX_NAME"))
 EMBEDDING_MODEL = "text-embedding-3-small"
 LLM_MODEL = "gpt-4o"
 CLASSIFIER_MODEL = "gpt-4o-mini"
-TOP_K = 25  # fetch more to compensate for deduplication
-MIN_SCORE = 0.45
+TOP_K = 20  # fetch more to compensate for deduplication
+MIN_SCORE = 0.50
 
 # --- Gender detection ---
 # Defaults to men's football unless the query explicitly mentions women's game.

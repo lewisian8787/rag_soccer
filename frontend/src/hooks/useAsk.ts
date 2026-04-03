@@ -31,6 +31,8 @@ export function useAsk() {
     setResult(null)
     setError(null)
 
+    const t0 = performance.now()
+
     try {
       const res = await fetch('/api/ask/stream', {
         method: 'POST',
@@ -81,7 +83,7 @@ export function useAsk() {
             const contextLimit = 128000
             const remaining = contextLimit - promptTokens
 
-            console.group(`[FFG] ${query}`)
+            console.group(`[FFG] ${query} — ${((performance.now() - t0) / 1000).toFixed(2)}s`)
             console.log('Pipeline:', r.query_types.join(' + ') || 'unknown')
             console.log('Confidence:', r.confidence)
             if (r.retrieval_scores.length) console.log('Retrieval scores:', r.retrieval_scores)
