@@ -34,7 +34,7 @@ export function useAsk() {
     const t0 = performance.now()
 
     try {
-      const res = await fetch('/api/ask/stream', {
+      const res = await fetch(`${__API_BASE__}/api/ask/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, mode, history }),

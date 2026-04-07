@@ -18,7 +18,7 @@ export function useStandings() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/standings')
+    fetch(`${__API_BASE__}/api/standings`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
