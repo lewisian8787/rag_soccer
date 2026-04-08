@@ -33,11 +33,21 @@ jobs:
           pip install -r backend/requirements.txt
 
       - name: Run mocked tests
+        env:
+          OPENAI_API_KEY: test
+          PINECONE_API_KEY: test
+          PINECONE_INDEX_NAME: test
+          DATABASE_URL: postgresql://localhost/test
         run: |
           cd backend
           pytest -m "not live" -v --tb=short
 
       - name: Generate coverage report
+        env:
+          OPENAI_API_KEY: test
+          PINECONE_API_KEY: test
+          PINECONE_INDEX_NAME: test
+          DATABASE_URL: postgresql://localhost/test
         run: |
           cd backend
           pytest -m "not live" --cov=retrieval --cov-report=term-missing --cov-report=xml
