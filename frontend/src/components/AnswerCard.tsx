@@ -19,6 +19,7 @@ function ConfidenceSlider({ score }: { score: number }) {
     <div className="flex flex-col gap-1">
       <div className="flex justify-between text-xs text-gray-500">
         <span>cold</span>
+        <span className="text-gray-500 uppercase tracking-widest text-[10px]">Confidence</span>
         <span>hot</span>
       </div>
       <div className="relative h-2 rounded-full overflow-hidden" style={{
