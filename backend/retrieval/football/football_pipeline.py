@@ -11,9 +11,23 @@ from football.query_stats import format_stats_context
 
 load_dotenv()
 
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-index = pc.Index(os.getenv("PINECONE_INDEX_NAME"))
+_openai_client = None
+_index = None
+
+
+def _get_openai():
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return _openai_client
+
+
+def _get_index():
+    global _index
+    if _index is None:
+        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        _index = pc.Index(os.getenv("PINECONE_INDEX_NAME"))
+    return _index
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 LLM_MODEL = "gpt-4o"
@@ -67,7 +81,7 @@ def rewrite_query(query: str, history: list[dict] = None) -> str:
         messages.extend(history[-2:])
     messages.append({"role": "user", "content": query})
 
-    response = openai_client.chat.completions.create(
+    response = _get_openai().chat.completions.create(
         model=CLASSIFIER_MODEL,
         messages=messages,
         temperature=0,
@@ -104,7 +118,7 @@ Respond with valid JSON only, no explanation:
 """
 
 def classify_query(query: str) -> set[str]:
-    response = openai_client.chat.completions.create(
+    response = _get_openai().chat.completions.create(
         model=CLASSIFIER_MODEL,
         messages=[
             {"role": "system", "content": CLASSIFIER_PROMPT},
@@ -148,7 +162,7 @@ def fetch_stats_context(query: str, since_date: str = None) -> str:
         f"to any tool that supports it, unless the user explicitly asks about an earlier period."
     )
 
-    response = openai_client.chat.completions.create(
+    response = _get_openai().chat.completions.create(
         model=CLASSIFIER_MODEL,
         messages=[
             {
@@ -202,7 +216,7 @@ def fetch_stats_context(query: str, since_date: str = None) -> str:
 CURRENT_SEASON_DATE = "2025-08-01"   # start of 2025/26 season
 
 def get_embedding(text):
-    response = openai_client.embeddings.create(
+    response = _get_openai().embeddings.create(
         input=text,
         model=EMBEDDING_MODEL,
     )
@@ -220,7 +234,7 @@ def retrieve_match_report_chunks(query, from_date=None, gender=None):
             pinecone_filter["published_at"] = {"$gte": timestamp}
         if gender:
             pinecone_filter["gender"] = {"$eq": gender}
-        results = index.query(
+        results = _get_index().query(
             vector=embedding,
             top_k=TOP_K,
             include_metadata=True,
@@ -362,7 +376,7 @@ def _assess_confidence(answer: str, query: str, chunks: list, stats_context: str
         f"Answer given: {answer}"
     )
 
-    response = openai_client.chat.completions.create(
+    response = _get_openai().chat.completions.create(
         model=CLASSIFIER_MODEL,
         messages=[
             {"role": "system", "content": CONFIDENCE_ASSESSMENT_PROMPT},
@@ -432,7 +446,7 @@ def generate_response(query, chunks, stats_context="", used_fallback=False, quer
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
-    response = openai_client.chat.completions.create(
+    response = _get_openai().chat.completions.create(
         model=LLM_MODEL,
         messages=messages,
         stream=True,
