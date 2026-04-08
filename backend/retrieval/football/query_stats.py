@@ -10,15 +10,22 @@ load_dotenv()
 
 DB_CONN = os.getenv("DATABASE_URL")
 
-_pool = psycopg2.pool.ThreadedConnectionPool(
-    1, 10, DB_CONN, cursor_factory=psycopg2.extras.RealDictCursor
-)
+_pool = None
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        _pool = psycopg2.pool.ThreadedConnectionPool(
+            1, 10, DB_CONN, cursor_factory=psycopg2.extras.RealDictCursor
+        )
+    return _pool
 
 
 # -- Borrow a connection from the pool, commit on exit, return it when done --
 @contextmanager
 def get_conn():
-    conn = _pool.getconn()
+    conn = _get_pool().getconn()
     try:
         yield conn
         conn.commit()
@@ -26,7 +33,7 @@ def get_conn():
         conn.rollback()
         raise
     finally:
-        _pool.putconn(conn)
+        _get_pool().putconn(conn)
 
 # --  THIS FILE LISTS ALL POSSIBLE SQL QUERIES THAT WOULD BE NEEDED --
 # -- last updated march 29
