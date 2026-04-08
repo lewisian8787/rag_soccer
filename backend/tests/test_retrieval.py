@@ -34,12 +34,13 @@ class TestGetEmbedding:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
+        with patch("football.football_pipeline._get_openai") as mock_fn:
+            client = mock_fn.return_value
             mock_response = Mock()
             mock_response.data = [Mock()]
             mock_response.data[0].embedding = [0.1] * 1536
-            mock.embeddings.create.return_value = mock_response
-            yield mock
+            client.embeddings.create.return_value = mock_response
+            yield client
 
     def test_returns_1536_dim_vector(self, mock_openai):
         result = get_embedding("test query")
@@ -56,17 +57,18 @@ class TestRetrieveMocked:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
+        with patch("football.football_pipeline._get_openai") as mock_fn:
+            client = mock_fn.return_value
             mock_response = Mock()
             mock_response.data = [Mock()]
             mock_response.data[0].embedding = [0.1] * 1536
-            mock.embeddings.create.return_value = mock_response
-            yield mock
+            client.embeddings.create.return_value = mock_response
+            yield client
 
     @pytest.fixture
     def mock_pinecone(self):
-        with patch("football.football_pipeline._get_index", return_value=Mock()) as mock:
-            yield mock
+        with patch("football.football_pipeline._get_index") as mock_fn:
+            yield mock_fn.return_value
 
     def test_queries_pinecone_with_top_k(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {"matches": []}
@@ -151,17 +153,18 @@ class TestRetrievalScoreQuality:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
+        with patch("football.football_pipeline._get_openai") as mock_fn:
+            client = mock_fn.return_value
             mock_response = Mock()
             mock_response.data = [Mock()]
             mock_response.data[0].embedding = [0.1] * 1536
-            mock.embeddings.create.return_value = mock_response
-            yield mock
+            client.embeddings.create.return_value = mock_response
+            yield client
 
     @pytest.fixture
     def mock_pinecone(self):
-        with patch("football.football_pipeline._get_index", return_value=Mock()) as mock:
-            yield mock
+        with patch("football.football_pipeline._get_index") as mock_fn:
+            yield mock_fn.return_value
 
     def test_high_score_chunks_retained(self, mock_openai, mock_pinecone):
         """Chunks with scores >= 0.75 should definitely be retained."""

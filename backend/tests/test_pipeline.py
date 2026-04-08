@@ -52,8 +52,8 @@ class TestRewriteQuery:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
-            yield mock
+        with patch("football.football_pipeline._get_openai") as mock_fn:
+            yield mock_fn.return_value
 
     def test_expands_abbreviations(self, mock_openai):
         mock_response = Mock()
@@ -79,18 +79,18 @@ class TestRetrieve:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
-            # Mock embedding response
+        with patch("football.football_pipeline._get_openai") as mock_fn:
+            client = mock_fn.return_value
             mock_response = Mock()
             mock_response.data = [Mock()]
             mock_response.data[0].embedding = [0.1] * 1536
-            mock.embeddings.create.return_value = mock_response
-            yield mock
+            client.embeddings.create.return_value = mock_response
+            yield client
 
     @pytest.fixture
     def mock_pinecone(self):
-        with patch("football.football_pipeline._get_index", return_value=Mock()) as mock:
-            yield mock
+        with patch("football.football_pipeline._get_index") as mock_fn:
+            yield mock_fn.return_value
 
     def test_filters_below_min_score(self, mock_openai, mock_pinecone):
         mock_pinecone.query.return_value = {
@@ -185,8 +185,8 @@ class TestFetchStatsContext:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
-            yield mock
+        with patch("football.football_pipeline._get_openai") as mock_fn:
+            yield mock_fn.return_value
 
     @pytest.fixture
     def mock_function_map(self):
@@ -229,8 +229,8 @@ class TestStreamGenerate:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
-            yield mock
+        with patch("football.football_pipeline._get_openai") as mock_fn:
+            yield mock_fn.return_value
 
     def test_yields_no_data_message_when_empty_context(self, mock_openai):
         events = list(generate_response("test", chunks=[], stats_context=""))
@@ -240,14 +240,18 @@ class TestStreamGenerate:
         assert "couldn't find enough" in events[0].lower()
 
     def test_yields_token_events(self, mock_openai):
-        # Mock streaming response
+        # Mock streaming response (first call) and _assess_confidence response (second call)
         mock_chunks = []
         for char in "Answer text\n<<<META>>>\n{}":
             chunk = Mock()
             chunk.choices = [Mock()]
             chunk.choices[0].delta.content = char
+            chunk.usage = None
             mock_chunks.append(chunk)
-        mock_openai.chat.completions.create.return_value = iter(mock_chunks)
+        confidence_response = Mock()
+        confidence_response.choices = [Mock()]
+        confidence_response.choices[0].message.content = '{"confidence": 8, "caveat": null}'
+        mock_openai.chat.completions.create.side_effect = [iter(mock_chunks), confidence_response]
 
         sample_chunks = [{"score": 0.8, "metadata": {"title": "M", "published_at": 1700000000, "chunk_text": "T"}}]
         events = list(generate_response("test", chunks=sample_chunks))
@@ -260,7 +264,10 @@ class TestStreamGenerate:
         assert len(done_events) == 1
 
     def test_includes_query_types_in_done_event(self, mock_openai):
-        mock_openai.chat.completions.create.return_value = iter([])
+        confidence_response = Mock()
+        confidence_response.choices = [Mock()]
+        confidence_response.choices[0].message.content = '{"confidence": 8, "caveat": null}'
+        mock_openai.chat.completions.create.side_effect = [iter([]), confidence_response]
 
         sample_chunks = [{"score": 0.8, "metadata": {"title": "M", "published_at": 1700000000, "chunk_text": "T"}}]
         events = list(generate_response("test", chunks=sample_chunks, query_types=["rag", "stats"]))

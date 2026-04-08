@@ -128,8 +128,8 @@ class TestClassifyQueryMocked:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
-            yield mock
+        with patch("football.football_pipeline._get_openai") as mock_fn:
+            yield mock_fn.return_value
 
     def _setup_mock_response(self, mock_openai, types: list[str]):
         """Configure mock to return specified types."""
