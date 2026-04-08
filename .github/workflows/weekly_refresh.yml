@@ -1,0 +1,39 @@
+name: Weekly data refresh
+
+on:
+  schedule:
+    - cron: '0 6 * * 2'  # every Tuesday 6am UTC — after weekend fixtures settle
+  workflow_dispatch:      # allows manual trigger from GitHub Actions tab
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Fetch new match stats
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: python backend/ingestion/fetch_stats.py
+
+      - name: Fetch new Guardian reports
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GUARDIAN_API_KEY: ${{ secrets.GUARDIAN_API_KEY }}
+        run: python backend/ingestion/fetch_reports.py
+
+      - name: Embed new reports into Pinecone
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          PINECONE_INDEX_NAME: ${{ secrets.PINECONE_INDEX_NAME }}
+        run: python backend/embedding/embed_reports.py
