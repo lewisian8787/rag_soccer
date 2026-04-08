@@ -52,7 +52,7 @@ class TestRewriteQuery:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline.openai_client") as mock:
+        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
             yield mock
 
     def test_expands_abbreviations(self, mock_openai):
@@ -79,7 +79,7 @@ class TestRetrieve:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline.openai_client") as mock:
+        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
             # Mock embedding response
             mock_response = Mock()
             mock_response.data = [Mock()]
@@ -89,7 +89,7 @@ class TestRetrieve:
 
     @pytest.fixture
     def mock_pinecone(self):
-        with patch("football.football_pipeline.index") as mock:
+        with patch("football.football_pipeline._get_index", return_value=Mock()) as mock:
             yield mock
 
     def test_filters_below_min_score(self, mock_openai, mock_pinecone):
@@ -185,7 +185,7 @@ class TestFetchStatsContext:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline.openai_client") as mock:
+        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
             yield mock
 
     @pytest.fixture
@@ -229,7 +229,7 @@ class TestStreamGenerate:
 
     @pytest.fixture
     def mock_openai(self):
-        with patch("football.football_pipeline.openai_client") as mock:
+        with patch("football.football_pipeline._get_openai", return_value=Mock()) as mock:
             yield mock
 
     def test_yields_no_data_message_when_empty_context(self, mock_openai):
